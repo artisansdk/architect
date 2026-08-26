@@ -47,10 +47,18 @@ jobs:
 
           git tag --list "v*" --sort=version:refname | while IFS= read -r version; do
             version_source=$(mktemp -d)
+            version_book=$(mktemp -d)
             git worktree add --detach "$version_source" "$version"
-            mdbook build "$version_source/docs/book" --dest-dir "$GITHUB_WORKSPACE/site/$version"
+
+            # Keep the active theme and renderer configuration for every release.
+            cp -R "$main_source/docs/book/." "$version_book"
+            cp -R "$version_source/docs/book/src/." "$version_book/src"
+
+            mdbook build "$version_book" --dest-dir "$GITHUB_WORKSPACE/site/$version"
             git worktree remove --force "$version_source"
           done
+
+          git worktree remove --force "$main_source"
 
           touch site/.nojekyll
 
