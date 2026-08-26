@@ -1,9 +1,9 @@
 # @artisansdk/architect
 
-[![npm version](https://img.shields.io/npm/v/%40raubjo%2Farchitect.svg)](https://www.npmjs.com/package/@artisansdk/architect)
-[![CI](https://github.com/RaubJo/architect/actions/workflows/publish.yml/badge.svg)](https://github.com/RaubJo/architect/actions/workflows/publish.yml)
-[![License: MIT](https://img.shields.io/github/license/RaubJo/architect.svg)](LICENSE)
-[![Docs](https://img.shields.io/badge/docs-book-blue)](https://raubjo.github.io/architect/)
+[![npm version](https://img.shields.io/npm/v/%40artisansdk%2Farchitect.svg)](https://www.npmjs.com/package/@artisansdk/architect)
+[![CI](https://github.com/artisansdk/architect/actions/workflows/publish.yml/badge.svg)](https://github.com/artisansdk/architect/actions/workflows/publish.yml)
+[![License: MIT](https://img.shields.io/github/license/artisansdk/architect.svg)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-book-red)](https://artisansdk.github.io/architect/)
 
 A Laravel-inspired application container for frontend apps: a shared dependency-injection container, service providers with a `register → boot → destroy` lifecycle, and thin `useService(...)` runtime adapters for React, Solid, Svelte, and Vue.
 
@@ -46,13 +46,13 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 
 ## Documentation
 
-Full guides and API reference: **[raubjo.github.io/architect](https://raubjo.github.io/architect/)**
+Full guides and API reference: **[artisansdk.github.io/architect](https://artisansdk.github.io/architect/)**
 
-- [Quick Start](https://raubjo.github.io/architect/quick-start.html)
-- [Core Concepts](https://raubjo.github.io/architect/concepts/application.html) — Application lifecycle, Service Providers, Container
-- [Built-in Services](https://raubjo.github.io/architect/services/config.html) — Config, Cache, Store, Events, Logging, Scheduler
-- [Framework Adapters](https://raubjo.github.io/architect/adapters.html) — React, Vue, Solid, Svelte
-- [Facades](https://raubjo.github.io/architect/facades.html) · [Utilities](https://raubjo.github.io/architect/utilities.html)
+- [Quick Start](https://artisansdk.github.io/architect/quick-start.html)
+- [Core Concepts](https://artisansdk.github.io/architect/concepts/application.html) — Application lifecycle, Service Providers, Container
+- [Built-in Services](https://artisansdk.github.io/architect/services/config.html) — Config, Cache, Store, Events, Logging, Scheduler
+- [Framework Adapters](https://artisansdk.github.io/architect/adapters.html) — React, Vue, Solid, Svelte
+- [Facades](https://artisansdk.github.io/architect/facades.html) · [Utilities](https://artisansdk.github.io/architect/utilities.html)
 
 ## Examples
 
@@ -71,6 +71,8 @@ bun test
 bun run fix
 ```
 
-## License
+## Licensing
 
-[MIT](LICENSE)
+Copyright (c) 2026 [Artisan Made, Co](https://www.artisanmade.io) and Joseph Raub
+
+This package is released under the [MIT](LICENSE) license. Please see the LICENSE file distributed with every copy of the code for commercial licensing terms.
