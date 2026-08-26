@@ -96,7 +96,8 @@ body {
 
 .artisan-sidebar-logo {
     display: block;
-    margin: 1rem 1.25rem 2rem;
+    margin: 1.5rem;
+    padding-bottom: 1rem;
 }
 
 .artisan-sidebar-logo img {
