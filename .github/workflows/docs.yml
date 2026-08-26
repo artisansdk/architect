@@ -42,24 +42,28 @@ jobs:
 
           main_source=$(mktemp -d)
           git worktree add --detach "$main_source" origin/main
-          mdbook build "$main_source/docs/book" --dest-dir "$GITHUB_WORKSPACE/site"
-          git worktree remove --force "$main_source"
-
+          
+          mdbook build "$main_source/docs/book" \
+            --dest-dir "$GITHUB_WORKSPACE/site"
+          
           git tag --list "v*" --sort=version:refname | while IFS= read -r version; do
             version_source=$(mktemp -d)
             version_book=$(mktemp -d)
+          
             git worktree add --detach "$version_source" "$version"
-
-            # Keep the active theme and renderer configuration for every release.
+          
+            # Current theme/config + historical content
             cp -R "$main_source/docs/book/." "$version_book"
             cp -R "$version_source/docs/book/src/." "$version_book/src"
-
-            mdbook build "$version_book" --dest-dir "$GITHUB_WORKSPACE/site/$version"
+          
+            mdbook build "$version_book" \
+              --dest-dir "$GITHUB_WORKSPACE/site/$version"
+          
             git worktree remove --force "$version_source"
           done
-
+          
           git worktree remove --force "$main_source"
-
+          
           touch site/.nojekyll
 
       - name: Configure GitHub Pages
