@@ -227,6 +227,16 @@ export default class BuiltinContainer implements Contract {
         return this
     }
 
+    alias<T>(alias: Identifier<T>, target: Identifier<T>): this {
+        this.removeIfBound(alias)
+        this.bindings.set(alias, {
+            kind: "factory",
+            concrete: (c) => c.make(target) as T,
+            scope: "transient",
+        })
+        return this
+    }
+
     make<T>(identifier: Identifier<T>): T {
         const record = this.bindings.get(identifier)
         if (record) {

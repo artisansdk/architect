@@ -24,6 +24,8 @@ export interface Container {
     bind<T>(identifier: Identifier<T>, concrete: Concrete<T>): this
     /** Register an existing instance as a shared binding. */
     instance<T>(identifier: Identifier<T>, value: T): this
+    /** Point an identifier at another identifier; resolving the alias resolves the target. */
+    alias<T>(alias: Identifier<T>, target: Identifier<T>): this
     /** Resolve an instance from the container. */
     make<T>(identifier: Identifier<T>): T
     /** Compatibility alias for make(). */
