@@ -126,6 +126,14 @@ describe("Task.execute()", () => {
         expect(fn).toHaveBeenCalledTimes(1)
     })
 
+    test("immediately() fires on the next execute()", () => {
+        const fn = mock()
+        const t = new Task(fn)
+        t.in(60, "minutes").immediately()
+        t.execute()
+        expect(fn).toHaveBeenCalledTimes(1)
+    })
+
     test("once() re-enables one-shot after every()", () => {
         const fn = mock()
         const t = makeTask(fn)

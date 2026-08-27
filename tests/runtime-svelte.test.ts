@@ -166,6 +166,36 @@ describe("Svelte runtime and renderer", () => {
         svelteState.useLegacyApi = false
     })
 
+    test("falls back to legacy api when svelte5 mount/unmount are unavailable", async () => {
+        let destroyed = 0
+        mock.module("svelte", () => ({
+            setContext: () => {},
+            getContext: () => null,
+            mount: undefined,
+            unmount: undefined,
+        }))
+        const { default: FreshSvelteRenderer } = await import("@/renderers/adapters/svelte")
+        ;(globalThis as { document: { getElementById: (id: string) => object | null } }).document = {
+            getElementById: () => ({}),
+        }
+
+        class FakeComponent {
+            destroy() {
+                destroyed += 1
+            }
+        }
+
+        const renderer = new FreshSvelteRenderer()
+        const cleanup = renderer.render({
+            RootComponent: FakeComponent,
+            container: new BuiltinContainer(),
+            rootElementId: "root",
+        })
+
+        cleanup()
+        expect(destroyed).toBe(1)
+    })
+
     test("supports legacy component cleanup when no destroy hook exists", () => {
         svelteState.useLegacyApi = true
         ;(globalThis as { document: { getElementById: (id: string) => object | null } }).document = {
