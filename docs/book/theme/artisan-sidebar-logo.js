@@ -11,8 +11,8 @@
 
         const link = document.createElement("a")
         link.className = "artisan-sidebar-logo"
-        link.href = "https://artisanmade.io/"
-        link.setAttribute("aria-label", "Artisan Made")
+        link.href = "https://github.com/artisansdk/architect"
+        link.setAttribute("aria-label", "Artisan Made, Co.")
 
         const image = document.createElement("img")
         image.src = logoSrc
