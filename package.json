@@ -42,6 +42,11 @@
         "./facades/cache": "./src/support/facades/cache.ts",
         "./facades/event": "./src/support/facades/event.ts",
         "./facades/log": "./src/support/facades/log.ts",
+        "./facades/http": "./src/support/facades/http.ts",
+        "./http/factory": "./src/http/factory.ts",
+        "./http/pending-request": "./src/http/pending-request.ts",
+        "./http/response": "./src/http/response.ts",
+        "./http/provider": "./src/http/provider.ts",
         "./log/contract": "./src/log/contract.ts",
         "./log/manager": "./src/log/manager.ts",
         "./log/provider": "./src/log/provider.ts",
@@ -119,10 +124,9 @@
         "bun-types": "^1.3.13",
         "fallow": "^2.67.0",
         "husky": "^9.1.7",
-        "reflect-metadata": "^0.2.2",
+        "vue": "^3.5.34",
         "solid-js": "^1.9.12",
-        "typescript": "^5.9.3",
-        "vue": "^3.5.34"
+        "typescript": "^5.9.3"
     },
     "trustedDependencies": [
         "@fallow-cli/fallow-cov"
