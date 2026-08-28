@@ -31,6 +31,11 @@ export { Dispatchable } from "./events/concerns/dispatchable"
 export { EventsProvider } from "./events/provider"
 export type { ApplicationConfigureOptions } from "./foundation/application"
 export { Application } from "./foundation/application"
+export { default as HttpFactory } from "./http/factory"
+export { default as PendingRequest } from "./http/pending-request"
+export { HttpProvider } from "./http/provider"
+export { default as Response } from "./http/response"
+export type { RecordedRequest } from "./http/types"
 export type { Contract as LogContract } from "./log/contract"
 export { default as LogManager } from "./log/manager"
 export { LogProvider } from "./log/provider"
@@ -60,6 +65,7 @@ export { Str } from "./support/str"
 
 import { CacheProvider } from "./cache/provider"
 import { ErrorsProvider } from "./errors/provider"
+import { HttpProvider } from "./http/provider"
 import { LogProvider } from "./log/provider"
 import { StoreProvider } from "./store/provider"
 import type ServiceProvider from "./support/service-provider"
@@ -68,5 +74,6 @@ export const defaultProviders: ServiceProvider[] = [
     new StoreProvider(),
     new CacheProvider(),
     new LogProvider(),
+    new HttpProvider(),
     new ErrorsProvider(),
 ]

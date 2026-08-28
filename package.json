@@ -118,6 +118,31 @@
             "bun": "./src/support/facades/log.ts",
             "default": "./dist/support/facades/log.js"
         },
+        "./facades/http": {
+            "types": "./dist/support/facades/http.d.ts",
+            "bun": "./src/support/facades/http.ts",
+            "default": "./dist/support/facades/http.js"
+        },
+        "./http/factory": {
+            "types": "./dist/http/factory.d.ts",
+            "bun": "./src/http/factory.ts",
+            "default": "./dist/http/factory.js"
+        },
+        "./http/pending-request": {
+            "types": "./dist/http/pending-request.d.ts",
+            "bun": "./src/http/pending-request.ts",
+            "default": "./dist/http/pending-request.js"
+        },
+        "./http/response": {
+            "types": "./dist/http/response.d.ts",
+            "bun": "./src/http/response.ts",
+            "default": "./dist/http/response.js"
+        },
+        "./http/provider": {
+            "types": "./dist/http/provider.d.ts",
+            "bun": "./src/http/provider.ts",
+            "default": "./dist/http/provider.js"
+        },
         "./log/contract": {
             "types": "./dist/log/contract.d.ts",
             "bun": "./src/log/contract.ts",

@@ -81,6 +81,19 @@ A built-in log driver that fans out each log call to an ordered list of other dr
 **NullLogger**:
 A built-in log driver that discards all messages. Useful in tests to silence output without changing application wiring.
 
+**HttpFactory**:
+The `fetch`-backed HTTP client fronted by the `Http` **Facade**, bound as `"http"` by `HttpProvider` (in `defaultProviders`). Models Laravel's `Illuminate\Http\Client\Factory`: verb methods (`get`/`post`/…) open a **PendingRequest**, dispatch it, and resolve to a **Response**. Holds the registered fakes and the recorder.
+_Avoid_: HttpClient, HttpManager (it is not a **Manager** — there are no swappable drivers)
+
+**PendingRequest**:
+A configured-but-unsent request. Fluent methods (`withToken`, `baseUrl`, `asForm`, `withQueryParameters`, `timeout`, …) mutate and return `this`; a verb method sends it. Owns URL building and body encoding. Created fresh per call — never shared.
+
+**Response**:
+The result of a sent request — the http package's own class, exported as `Response` (shadows the global; the class body refers to the native one as `globalThis.Response`). Wraps a native `Response` plus its already-read body text so accessors (`status`, `ok`, `successful`, `failed`, `json`, `header`, `throw`) stay synchronous. `ok()` is exactly 200; `successful()` is any 2xx.
+
+**Http fake**:
+A canned response registered on the **HttpFactory** via `Http.fake({ pattern: value })`, so an app builds and tests without a live API. Patterns are `*`-wildcard URL globs matched loosely on protocol; first match wins. `preventStrayRequests()` turns an unmatched request into a throw; `recorded()` returns the `[request, response]` history.
+
 **Facade**:
 A static proxy that forwards calls to a service resolved from the container — no instance caching of its own, every call re-resolves via `Application.make()`. Usable from `boot()` hooks onward — not in `register()` (register/boot contract). Calling a facade before `.run()` throws. Built-in facades: `App`, `Config`, `Cache`, `Store`, `Event`, `Log`.
 _Avoid_: static accessor, global service
@@ -101,6 +114,7 @@ Included in `defaultProviders`. Registers `"events"` (a **Bus**) if nothing else
 - Each **ServiceProvider** binds into and resolves from one **ContainerContract**
 - A **BuiltinContainer** implements **ContainerContract**
 - A **Facade** resolves its backing service from the current **Application**'s **ContainerContract**
+- An **HttpFactory** opens a **PendingRequest** per call, which resolves to a **Response**; an **Http fake** short-circuits dispatch before `fetch` is called
 - A **Macro** extends a **Facade** without modifying the underlying service
 - A **StoreManager**, **CacheManager**, and **LogManager** each manage a set of named **Drivers** with a **Fallback chain**
 - A **StackLogger** fans out log calls to multiple named **Drivers** — errors are swallowed per driver
