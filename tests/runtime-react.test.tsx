@@ -4,6 +4,7 @@ import type { ContainerIdentifier } from "@/container/contract"
 
 const reactContextValues = new Map<object, unknown>()
 let forcedReactContextValue: unknown
+let lastEffectCleanup: (() => void) | undefined
 function normalizeChildren(children: unknown[]): unknown {
     if (children.length === 0) {
         return undefined
@@ -68,7 +69,7 @@ const reactModule = {
         return { type, props: { ...(props ?? {}), children } }
     },
     useEffect(callback: () => void | (() => void)) {
-        callback()
+        lastEffectCleanup = callback() || undefined
     },
     useLayoutEffect(callback: () => void | (() => void)) {
         callback()
@@ -205,6 +206,18 @@ describe("React runtime", () => {
         reactContextValues.clear()
         ContextProvider({ application: fakeApp, fallback: "loading" })
         expect(ran).toBe(true)
+    })
+
+    test("ContextProvider effect cleanup stops the running app", () => {
+        const stop = mock()
+        reactContextValues.clear()
+        lastEffectCleanup = undefined
+        ContextProvider({
+            application: { run: () => ({ container: new BuiltinContainer(), stop }) },
+            fallback: "loading",
+        })
+        lastEffectCleanup?.()
+        expect(stop).toHaveBeenCalledTimes(1)
     })
 
     test("useContainer returns the current container", () => {

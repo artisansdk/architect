@@ -69,6 +69,14 @@ export class Task {
     }
 
     /**
+     * Run the first execution as soon as possible.
+     */
+    immediately(): this {
+        this.startAt = Date.now()
+        return this
+    }
+
+    /**
      * Make the task recurring. The handler is offered on a fixed cadence — the schedule
      * advances every interval regardless of whether conditions passed on a given tick.
      */
@@ -147,13 +155,18 @@ export class Scheduler implements Contract {
      * Register a named task. If a task with the same name already exists it is
      * removed and a warning is logged before the new task is registered.
      */
-    task(name: string, handler: () => void): Task {
+    task(handler: () => void): Task
+    task(name: string, handler: () => void): Task
+    task(nameOrHandler: string | (() => void), handler?: () => void): Task {
+        if (typeof nameOrHandler === "function") return this.do(nameOrHandler)
+
+        const name = nameOrHandler
         if (this.named.has(name)) {
             console.warn(`Scheduler: task "${name}" already registered — overwriting`)
             const existing = this.named.get(name)
             if (existing) this.remove(existing)
         }
-        const task = this.do(handler).name(name)
+        const task = this.do(handler!).name(name)
         this.named.set(name, task)
         return task
     }
