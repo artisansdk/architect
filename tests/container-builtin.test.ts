@@ -120,6 +120,15 @@ describe("BuiltinContainer adapter", () => {
         expect(a).toBe(container.make(Service))
     })
 
+    test("alias() resolves to the target binding", () => {
+        class Languages {}
+        const container = new BuiltinContainer()
+        container.singleton(Languages, Languages)
+        container.alias("bible.languages", Languages)
+
+        expect(container.make("bible.languages")).toBe(container.make(Languages))
+    })
+
     test("bind(string, Class) still creates new instances when Class is not registered", () => {
         class Transient {}
         const container = new BuiltinContainer()
