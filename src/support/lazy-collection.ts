@@ -110,7 +110,8 @@ export class LazyCollection<T> implements Iterable<T> {
 
     skipUntil(valueOrCallback: T | ((item: T, index: number) => boolean)): LazyCollection<T> {
         if (typeof valueOrCallback === "function") {
-            return this.skipWhile((item, i) => !valueOrCallback(item, i))
+            const callback = valueOrCallback as (item: T, index: number) => boolean
+            return this.skipWhile((item, i) => !callback(item, i))
         }
         return this.skipWhile((item) => item !== valueOrCallback)
     }

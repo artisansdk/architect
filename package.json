@@ -14,6 +14,9 @@
     },
     "scripts": {
         "test": "bun test",
+        "build": "tsc -p tsconfig.build.json && node scripts/finalize-dist.mjs",
+        "prepack": "tsc -p tsconfig.build.json && node scripts/finalize-dist.mjs",
+        "check:types": "tsc -p tsconfig.json --noEmit",
         "test:coverage": "bun test --coverage --coverage-reporter=lcov --coverage-dir=coverage && node scripts/lcov-to-istanbul.js",
         "fallow": "npm run test:coverage && npx fallow health --coverage coverage/coverage-final.json",
         "fix": "biome check --fix && fallow fix",
@@ -24,66 +27,296 @@
         "prepare": "bun husky"
     },
     "exports": {
-        ".": "./src/index.ts",
-        "./react": "./src/react.ts",
-        "./solid": "./src/solid.ts",
-        "./svelte": "./src/svelte.ts",
-        "./vue": "./src/vue.ts",
-        "./application": "./src/foundation/application.ts",
-        "./facades": "./src/support/facades/index.ts",
-        "./container/contract": "./src/container/contract.ts",
-        "./container/adapters/builtin": "./src/container/adapters/builtin.ts",
-        "./config/env": "./src/config/env.ts",
-        "./config/repository": "./src/config/repository.ts",
-        "./cache/manager": "./src/cache/manager.ts",
-        "./cache/cache": "./src/cache/cache.ts",
-        "./cache/provider": "./src/cache/provider.ts",
-        "./facades/app": "./src/support/facades/app.ts",
-        "./facades/cache": "./src/support/facades/cache.ts",
-        "./facades/event": "./src/support/facades/event.ts",
-        "./facades/log": "./src/support/facades/log.ts",
-        "./log/contract": "./src/log/contract.ts",
-        "./log/manager": "./src/log/manager.ts",
-        "./log/provider": "./src/log/provider.ts",
-        "./log/drivers/console": "./src/log/drivers/console.ts",
-        "./log/drivers/null": "./src/log/drivers/null.ts",
-        "./log/drivers/stack": "./src/log/drivers/stack.ts",
-        "./config/provider": "./src/config/provider.ts",
-        "./events/bus": "./src/events/bus.ts",
-        "./events/concerns/dispatchable": "./src/events/concerns/dispatchable.ts",
-        "./events/provider": "./src/events/provider.ts",
-        "./store/manager": "./src/store/manager.ts",
-        "./store/adapters/contract": "./src/store/adapters/contract.ts",
-        "./store/store": "./src/store/store.ts",
-        "./store/adapters/memory": "./src/store/adapters/memory.ts",
-        "./store/adapters/local-storage": "./src/store/adapters/local-storage.ts",
-        "./store/adapters/indexed-db": "./src/store/adapters/indexed-db.ts",
-        "./store/provider": "./src/store/provider.ts",
-        "./facades/store": "./src/support/facades/store.ts",
-        "./filesystem/filesystem": "./src/filesystem/filesystem.ts",
-        "./filesystem/local-adapter": "./src/filesystem/adapters/local.ts",
-        "./renderers/contract": "./src/renderers/contract.ts",
-        "./renderers/react": "./src/renderers/adapters/react.tsx",
-        "./renderers/solid": "./src/renderers/adapters/solid.tsx",
-        "./renderers/svelte": "./src/renderers/adapters/svelte.ts",
-        "./renderers/vue": "./src/renderers/adapters/vue.ts",
-        "./support/facades": "./src/support/facades/index.ts",
-        "./facades/config": "./src/support/facades/config.ts",
-        "./runtimes/react": "./src/runtimes/react.tsx",
-        "./runtimes/solid": "./src/runtimes/solid.tsx",
-        "./runtimes/svelte": "./src/runtimes/svelte.ts",
-        "./runtimes/vue": "./src/runtimes/vue.ts",
-        "./str": "./src/support/str.ts",
-        "./arr": "./src/support/arr.ts",
-        "./collection": "./src/support/collection.ts",
-        "./lazy-collection": "./src/support/lazy-collection.ts",
-        "./fluent": "./src/support/fluent.ts",
-        "./num": "./src/support/num.ts",
-        "./pipeline": "./src/support/pipeline.ts",
-        "./service-provider": "./src/support/service-provider.ts",
-        "./manager": "./src/support/manager.ts",
-        "./signal": "./src/support/signal.ts",
-        "./facade": "./src/support/facades/facade.ts"
+        ".": {
+            "types": "./dist/index.d.ts",
+            "bun": "./src/index.ts",
+            "default": "./dist/index.js"
+        },
+        "./react": {
+            "types": "./dist/react.d.ts",
+            "bun": "./src/react.ts",
+            "default": "./dist/react.js"
+        },
+        "./solid": {
+            "types": "./dist/solid.d.ts",
+            "bun": "./src/solid.ts",
+            "default": "./dist/solid.js"
+        },
+        "./svelte": {
+            "types": "./dist/svelte.d.ts",
+            "bun": "./src/svelte.ts",
+            "default": "./dist/svelte.js"
+        },
+        "./vue": {
+            "types": "./dist/vue.d.ts",
+            "bun": "./src/vue.ts",
+            "default": "./dist/vue.js"
+        },
+        "./application": {
+            "types": "./dist/foundation/application.d.ts",
+            "bun": "./src/foundation/application.ts",
+            "default": "./dist/foundation/application.js"
+        },
+        "./facades": {
+            "types": "./dist/support/facades/index.d.ts",
+            "bun": "./src/support/facades/index.ts",
+            "default": "./dist/support/facades/index.js"
+        },
+        "./container/contract": {
+            "types": "./dist/container/contract.d.ts",
+            "bun": "./src/container/contract.ts",
+            "default": "./dist/container/contract.js"
+        },
+        "./container/adapters/builtin": {
+            "types": "./dist/container/adapters/builtin.d.ts",
+            "bun": "./src/container/adapters/builtin.ts",
+            "default": "./dist/container/adapters/builtin.js"
+        },
+        "./config/env": {
+            "types": "./dist/config/env.d.ts",
+            "bun": "./src/config/env.ts",
+            "default": "./dist/config/env.js"
+        },
+        "./config/repository": {
+            "types": "./dist/config/repository.d.ts",
+            "bun": "./src/config/repository.ts",
+            "default": "./dist/config/repository.js"
+        },
+        "./cache/manager": {
+            "types": "./dist/cache/manager.d.ts",
+            "bun": "./src/cache/manager.ts",
+            "default": "./dist/cache/manager.js"
+        },
+        "./cache/cache": {
+            "types": "./dist/cache/cache.d.ts",
+            "bun": "./src/cache/cache.ts",
+            "default": "./dist/cache/cache.js"
+        },
+        "./cache/provider": {
+            "types": "./dist/cache/provider.d.ts",
+            "bun": "./src/cache/provider.ts",
+            "default": "./dist/cache/provider.js"
+        },
+        "./facades/app": {
+            "types": "./dist/support/facades/app.d.ts",
+            "bun": "./src/support/facades/app.ts",
+            "default": "./dist/support/facades/app.js"
+        },
+        "./facades/cache": {
+            "types": "./dist/support/facades/cache.d.ts",
+            "bun": "./src/support/facades/cache.ts",
+            "default": "./dist/support/facades/cache.js"
+        },
+        "./facades/event": {
+            "types": "./dist/support/facades/event.d.ts",
+            "bun": "./src/support/facades/event.ts",
+            "default": "./dist/support/facades/event.js"
+        },
+        "./facades/log": {
+            "types": "./dist/support/facades/log.d.ts",
+            "bun": "./src/support/facades/log.ts",
+            "default": "./dist/support/facades/log.js"
+        },
+        "./log/contract": {
+            "types": "./dist/log/contract.d.ts",
+            "bun": "./src/log/contract.ts",
+            "default": "./dist/log/contract.js"
+        },
+        "./log/manager": {
+            "types": "./dist/log/manager.d.ts",
+            "bun": "./src/log/manager.ts",
+            "default": "./dist/log/manager.js"
+        },
+        "./log/provider": {
+            "types": "./dist/log/provider.d.ts",
+            "bun": "./src/log/provider.ts",
+            "default": "./dist/log/provider.js"
+        },
+        "./log/drivers/console": {
+            "types": "./dist/log/drivers/console.d.ts",
+            "bun": "./src/log/drivers/console.ts",
+            "default": "./dist/log/drivers/console.js"
+        },
+        "./log/drivers/null": {
+            "types": "./dist/log/drivers/null.d.ts",
+            "bun": "./src/log/drivers/null.ts",
+            "default": "./dist/log/drivers/null.js"
+        },
+        "./log/drivers/stack": {
+            "types": "./dist/log/drivers/stack.d.ts",
+            "bun": "./src/log/drivers/stack.ts",
+            "default": "./dist/log/drivers/stack.js"
+        },
+        "./config/provider": {
+            "types": "./dist/config/provider.d.ts",
+            "bun": "./src/config/provider.ts",
+            "default": "./dist/config/provider.js"
+        },
+        "./events/bus": {
+            "types": "./dist/events/bus.d.ts",
+            "bun": "./src/events/bus.ts",
+            "default": "./dist/events/bus.js"
+        },
+        "./events/concerns/dispatchable": {
+            "types": "./dist/events/concerns/dispatchable.d.ts",
+            "bun": "./src/events/concerns/dispatchable.ts",
+            "default": "./dist/events/concerns/dispatchable.js"
+        },
+        "./events/provider": {
+            "types": "./dist/events/provider.d.ts",
+            "bun": "./src/events/provider.ts",
+            "default": "./dist/events/provider.js"
+        },
+        "./store/manager": {
+            "types": "./dist/store/manager.d.ts",
+            "bun": "./src/store/manager.ts",
+            "default": "./dist/store/manager.js"
+        },
+        "./store/adapters/contract": {
+            "types": "./dist/store/adapters/contract.d.ts",
+            "bun": "./src/store/adapters/contract.ts",
+            "default": "./dist/store/adapters/contract.js"
+        },
+        "./store/store": {
+            "types": "./dist/store/store.d.ts",
+            "bun": "./src/store/store.ts",
+            "default": "./dist/store/store.js"
+        },
+        "./store/adapters/memory": {
+            "types": "./dist/store/adapters/memory.d.ts",
+            "bun": "./src/store/adapters/memory.ts",
+            "default": "./dist/store/adapters/memory.js"
+        },
+        "./store/adapters/local-storage": {
+            "types": "./dist/store/adapters/local-storage.d.ts",
+            "bun": "./src/store/adapters/local-storage.ts",
+            "default": "./dist/store/adapters/local-storage.js"
+        },
+        "./store/adapters/indexed-db": {
+            "types": "./dist/store/adapters/indexed-db.d.ts",
+            "bun": "./src/store/adapters/indexed-db.ts",
+            "default": "./dist/store/adapters/indexed-db.js"
+        },
+        "./store/provider": {
+            "types": "./dist/store/provider.d.ts",
+            "bun": "./src/store/provider.ts",
+            "default": "./dist/store/provider.js"
+        },
+        "./facades/store": {
+            "types": "./dist/support/facades/store.d.ts",
+            "bun": "./src/support/facades/store.ts",
+            "default": "./dist/support/facades/store.js"
+        },
+        "./renderers/contract": {
+            "types": "./dist/renderers/contract.d.ts",
+            "bun": "./src/renderers/contract.ts",
+            "default": "./dist/renderers/contract.js"
+        },
+        "./renderers/react": {
+            "types": "./dist/renderers/adapters/react.d.ts",
+            "bun": "./src/renderers/adapters/react.tsx",
+            "default": "./dist/renderers/adapters/react.js"
+        },
+        "./renderers/solid": {
+            "types": "./dist/renderers/adapters/solid.d.ts",
+            "bun": "./src/renderers/adapters/solid.tsx",
+            "default": "./dist/renderers/adapters/solid.js"
+        },
+        "./renderers/svelte": {
+            "types": "./dist/renderers/adapters/svelte.d.ts",
+            "bun": "./src/renderers/adapters/svelte.ts",
+            "default": "./dist/renderers/adapters/svelte.js"
+        },
+        "./renderers/vue": {
+            "types": "./dist/renderers/adapters/vue.d.ts",
+            "bun": "./src/renderers/adapters/vue.ts",
+            "default": "./dist/renderers/adapters/vue.js"
+        },
+        "./support/facades": {
+            "types": "./dist/support/facades/index.d.ts",
+            "bun": "./src/support/facades/index.ts",
+            "default": "./dist/support/facades/index.js"
+        },
+        "./facades/config": {
+            "types": "./dist/support/facades/config.d.ts",
+            "bun": "./src/support/facades/config.ts",
+            "default": "./dist/support/facades/config.js"
+        },
+        "./runtimes/react": {
+            "types": "./dist/runtimes/react.d.ts",
+            "bun": "./src/runtimes/react.tsx",
+            "default": "./dist/runtimes/react.js"
+        },
+        "./runtimes/solid": {
+            "types": "./dist/runtimes/solid.d.ts",
+            "bun": "./src/runtimes/solid.tsx",
+            "default": "./dist/runtimes/solid.js"
+        },
+        "./runtimes/svelte": {
+            "types": "./dist/runtimes/svelte.d.ts",
+            "bun": "./src/runtimes/svelte.ts",
+            "default": "./dist/runtimes/svelte.js"
+        },
+        "./runtimes/vue": {
+            "types": "./dist/runtimes/vue.d.ts",
+            "bun": "./src/runtimes/vue.ts",
+            "default": "./dist/runtimes/vue.js"
+        },
+        "./str": {
+            "types": "./dist/support/str.d.ts",
+            "bun": "./src/support/str.ts",
+            "default": "./dist/support/str.js"
+        },
+        "./arr": {
+            "types": "./dist/support/arr.d.ts",
+            "bun": "./src/support/arr.ts",
+            "default": "./dist/support/arr.js"
+        },
+        "./collection": {
+            "types": "./dist/support/collection.d.ts",
+            "bun": "./src/support/collection.ts",
+            "default": "./dist/support/collection.js"
+        },
+        "./lazy-collection": {
+            "types": "./dist/support/lazy-collection.d.ts",
+            "bun": "./src/support/lazy-collection.ts",
+            "default": "./dist/support/lazy-collection.js"
+        },
+        "./fluent": {
+            "types": "./dist/support/fluent.d.ts",
+            "bun": "./src/support/fluent.ts",
+            "default": "./dist/support/fluent.js"
+        },
+        "./num": {
+            "types": "./dist/support/num.d.ts",
+            "bun": "./src/support/num.ts",
+            "default": "./dist/support/num.js"
+        },
+        "./pipeline": {
+            "types": "./dist/support/pipeline.d.ts",
+            "bun": "./src/support/pipeline.ts",
+            "default": "./dist/support/pipeline.js"
+        },
+        "./service-provider": {
+            "types": "./dist/support/service-provider.d.ts",
+            "bun": "./src/support/service-provider.ts",
+            "default": "./dist/support/service-provider.js"
+        },
+        "./manager": {
+            "types": "./dist/support/manager.d.ts",
+            "bun": "./src/support/manager.ts",
+            "default": "./dist/support/manager.js"
+        },
+        "./signal": {
+            "types": "./dist/support/signal.d.ts",
+            "bun": "./src/support/signal.ts",
+            "default": "./dist/support/signal.js"
+        },
+        "./facade": {
+            "types": "./dist/support/facades/facade.d.ts",
+            "bun": "./src/support/facades/facade.ts",
+            "default": "./dist/support/facades/facade.js"
+        }
     },
     "dependencies": {
         "valtio": "^2.1.7"
@@ -114,17 +347,18 @@
         }
     },
     "devDependencies": {
+        "@biomejs/biome": "2.5.11",
         "@types/react": "^19.2.14",
         "@types/react-dom": "^19.2.3",
         "bun-types": "^1.3.13",
         "fallow": "^2.67.0",
         "husky": "^9.1.7",
-        "reflect-metadata": "^0.2.2",
         "solid-js": "^1.9.12",
         "typescript": "^5.9.3",
         "vue": "^3.5.34"
     },
     "trustedDependencies": [
         "@fallow-cli/fallow-cov"
-    ]
+    ],
+    "types": "./dist/index.d.ts"
 }

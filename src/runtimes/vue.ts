@@ -11,11 +11,13 @@ export const ContextProvider = defineComponent({
         container: { type: Object as () => Container, required: false },
     },
     setup(props, { slots }) {
-        if (!props.application && !props.container) {
+        if (!props.container && !props.application) {
             throw new Error("ContextProvider requires either `application` or `container`.")
         }
 
-        const runtime = props.container ? { container: props.container, stop: () => {} } : props.application?.run()
+        const runtime = props.container
+            ? { container: props.container, stop: () => {} }
+            : (props.application as Application).run()
 
         provide(containerKey, runtime.container)
         onUnmounted(() => runtime.stop())

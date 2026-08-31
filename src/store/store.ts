@@ -1,1 +1,1 @@
-export type { Adapter as StoreAdapter, Contract } from "./adapters/contract"
+export type { Adapter as StoreAdapter } from "./adapters/contract"

@@ -9,3 +9,8 @@ default-theme = "light"
 preferred-dark-theme = "light"
 additional-css = ["theme/custom.css"]
 additional-js = ["theme/artisan-sidebar-logo.js", "theme/artisan-copy-icon.js", "theme/artisan-version-footer.js"]
+git-repository-url = "https://github.com/artisansdk/architect"
+git-repository-icon = "fab-github"
+
+[output.html.print]
+enable = false

@@ -1,1 +1,1 @@
-bunx biome check --no-errors-on-unmatched
+biome check --staged --no-errors-on-unmatched

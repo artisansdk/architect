@@ -52,5 +52,10 @@ export class Fluent<T extends Record<string, unknown> = Record<string, unknown>>
     }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+// The declaration merge below gives callers typed access to `T`'s keys directly on a
+// Fluent instance (the constructor Proxy handles it at runtime). TS rejects `extends T`
+// for a bare type parameter because a caller could pick a `T` whose members clash with
+// the class's own (`get`, `set`, `has`, ...); that trade-off is intentional and the
+// class members win. The suppression keeps the package type-checking clean for consumers.
+// @ts-expect-error - intentional interface/class merge over a generic parameter
 export interface Fluent<T extends Record<string, unknown> = Record<string, unknown>> extends T {}
