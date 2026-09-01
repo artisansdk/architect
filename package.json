@@ -83,6 +83,11 @@
             "bun": "./src/config/repository.ts",
             "default": "./dist/config/repository.js"
         },
+        "./config/contract": {
+            "types": "./dist/config/contract.d.ts",
+            "bun": "./src/config/contract.ts",
+            "default": "./dist/config/contract.js"
+        },
         "./cache/manager": {
             "types": "./dist/cache/manager.d.ts",
             "bun": "./src/cache/manager.ts",
@@ -97,6 +102,11 @@
             "types": "./dist/cache/provider.d.ts",
             "bun": "./src/cache/provider.ts",
             "default": "./dist/cache/provider.js"
+        },
+        "./cache/contract": {
+            "types": "./dist/cache/contract.d.ts",
+            "bun": "./src/cache/contract.ts",
+            "default": "./dist/cache/contract.js"
         },
         "./facades/app": {
             "types": "./dist/support/facades/app.d.ts",
@@ -123,6 +133,11 @@
             "bun": "./src/support/facades/http.ts",
             "default": "./dist/support/facades/http.js"
         },
+        "./facades/scheduler": {
+            "types": "./dist/support/facades/scheduler.d.ts",
+            "bun": "./src/support/facades/scheduler.ts",
+            "default": "./dist/support/facades/scheduler.js"
+        },
         "./http/factory": {
             "types": "./dist/http/factory.d.ts",
             "bun": "./src/http/factory.ts",
@@ -142,6 +157,36 @@
             "types": "./dist/http/provider.d.ts",
             "bun": "./src/http/provider.ts",
             "default": "./dist/http/provider.js"
+        },
+        "./http/types": {
+            "types": "./dist/http/types.d.ts",
+            "bun": "./src/http/types.ts",
+            "default": "./dist/http/types.js"
+        },
+        "./errors/error": {
+            "types": "./dist/errors/error.d.ts",
+            "bun": "./src/errors/error.ts",
+            "default": "./dist/errors/error.js"
+        },
+        "./errors/provider": {
+            "types": "./dist/errors/provider.d.ts",
+            "bun": "./src/errors/provider.ts",
+            "default": "./dist/errors/provider.js"
+        },
+        "./scheduler/contract": {
+            "types": "./dist/scheduler/contract.d.ts",
+            "bun": "./src/scheduler/contract.ts",
+            "default": "./dist/scheduler/contract.js"
+        },
+        "./scheduler/scheduler": {
+            "types": "./dist/scheduler/scheduler.d.ts",
+            "bun": "./src/scheduler/scheduler.ts",
+            "default": "./dist/scheduler/scheduler.js"
+        },
+        "./scheduler/provider": {
+            "types": "./dist/scheduler/provider.d.ts",
+            "bun": "./src/scheduler/provider.ts",
+            "default": "./dist/scheduler/provider.js"
         },
         "./log/contract": {
             "types": "./dist/log/contract.d.ts",
