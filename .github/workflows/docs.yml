@@ -40,30 +40,89 @@ jobs:
         run: |
           mkdir site
 
+          all_versions=$(git tag --list "v*" --sort=-version:refname)
+
+          # Rewrites the VERSION-SWITCHER:START/END block in theme/index.hbs for
+          # one build: a version switcher listing "Latest (package.json's
+          # version)" plus every tag, with $2 marked as the active selection.
+          # $1 is how far this build's own root sits from the site root ("" for
+          # the main/root build, "../" for a build nested under /vX.Y.Z/). $3 is
+          # the docs/book dir to rewrite. Requires $latest_version to be set.
+          render_version_switcher() {
+            local site_root="$1" current="$2" book_dir="$3"
+            local block=$(mktemp)
+
+            {
+              echo '<div id="mdbook-version-bar" class="artisan-version-bar">'
+              echo '    <label for="mdbook-version-select">Version</label>'
+              echo '    <select id="mdbook-version-select" onchange="location.href=this.value">'
+              if [ "$current" = "Latest" ]; then
+                echo "        <option value=\"{{ path_to_root }}${site_root}\" selected>Latest (${latest_version})</option>"
+              else
+                echo "        <option value=\"{{ path_to_root }}${site_root}\">Latest (${latest_version})</option>"
+              fi
+              echo "$all_versions" | while IFS= read -r tag; do
+                [ -z "$tag" ] && continue
+                # Skip the tag matching package.json's version: "Latest (…)" already covers it,
+                # unless we're building that tag's own page, where it's still what's "selected".
+                [ "$tag" = "v${latest_version}" ] && [ "$current" != "$tag" ] && continue
+                if [ "$tag" = "$current" ]; then
+                  echo "        <option value=\"{{ path_to_root }}${site_root}${tag}/\" selected>${tag}</option>"
+                else
+                  echo "        <option value=\"{{ path_to_root }}${site_root}${tag}/\">${tag}</option>"
+                fi
+              done
+              echo '    </select>'
+              echo '</div>'
+            } > "$block"
+
+            python3 - "$book_dir/theme/index.hbs" "$block" <<'PYEOF'
+          if True:  # indented to satisfy this YAML block scalar; see below
+              import re, sys
+              dest, block_path = sys.argv[1], sys.argv[2]
+              block = open(block_path).read().rstrip("\n")
+              text = open(dest).read()
+              pattern = re.compile(
+                  r"(<!-- VERSION-SWITCHER:START -->\n).*?(\n\s*<!-- VERSION-SWITCHER:END -->)",
+                  re.DOTALL,
+              )
+              text, count = pattern.subn(lambda m: m.group(1) + block + m.group(2), text)
+              if count != 1:
+                  sys.exit(f"expected exactly one VERSION-SWITCHER block in {dest}, found {count}")
+              open(dest, "w").write(text)
+          PYEOF
+          }
+
           main_source=$(mktemp -d)
           git worktree add --detach "$main_source" origin/main
-          
+
+          latest_version=$(grep -m1 '"version"' "$main_source/package.json" | sed -E 's/.*"version": *"([^"]+)".*/\1/')
+
+          render_version_switcher "" "Latest" "$main_source/docs/book"
+
           mdbook build "$main_source/docs/book" \
             --dest-dir "$GITHUB_WORKSPACE/site"
-          
-          git tag --list "v*" --sort=version:refname | while IFS= read -r version; do
+
+          echo "$all_versions" | while IFS= read -r version; do
             version_source=$(mktemp -d)
             version_book=$(mktemp -d)
-          
+
             git worktree add --detach "$version_source" "$version"
-          
+
             # Current theme/config + historical content
             cp -R "$main_source/docs/book/." "$version_book"
             cp -R "$version_source/docs/book/src/." "$version_book/src"
-          
+
+            render_version_switcher "../" "$version" "$version_book"
+
             mdbook build "$version_book" \
               --dest-dir "$GITHUB_WORKSPACE/site/$version"
-          
+
             git worktree remove --force "$version_source"
           done
-          
+
           git worktree remove --force "$main_source"
-          
+
           touch site/.nojekyll
 
       - name: Configure GitHub Pages

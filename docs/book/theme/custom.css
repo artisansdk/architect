@@ -74,12 +74,23 @@ body {
 .sidebar {
     box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.12);
     min-width: 16rem;
+    display: flex;
+    flex-direction: column;
 }
 
 .sidebar,
 .sidebar-scrollbox,
 .sidebar-iframe-inner {
     background: var(--sidebar-bg);
+}
+
+/* The logo is rendered statically ahead of the scrollbox in index.hbs, so the
+   scrollbox is switched from full-bleed absolute positioning to a flex sibling
+   that fills the remaining height and scrolls independently. */
+.sidebar .sidebar-scrollbox {
+    position: static;
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 .sidebar-scrollbox {
@@ -103,8 +114,13 @@ body {
 }
 
 .artisan-sidebar-logo {
+    /* Previously nested inside the padded (1rem 3rem) scrollbox with its own
+       1.5rem margin; now a flex sibling of the scrollbox, so its own margin
+       must carry the full inset (1rem + 1.5rem top, 3rem + 1.5rem sides) to
+       match the old spacing exactly. */
     display: block;
-    margin: 1.5rem;
+    flex: none;
+    margin: 2.5rem 4.5rem 1.5rem;
     padding-bottom: 1rem;
 }
 
@@ -356,12 +372,39 @@ body {
     color: var(--artisan-ink);
 }
 
-.artisan-version-footer {
-    border-top: 1px solid var(--artisan-code-border);
+/* Version switcher: the VERSION-SWITCHER:START/END block in index.hbs
+   (rewritten per build by the docs workflow), sitting in .right-buttons just
+   left of the GitHub icon. It can't live in the stock {{> header}} slot:
+   mdBook's own chrome.css pulls .page up by
+   `margin-block-start: calc(0px - var(--menu-bar-height))` to offset the
+   sticky-menu-bar hover placeholder, which shoves header.hbs content above
+   the viewport unless it's independently position:sticky too. Living inside
+   the menu bar itself sidesteps that entirely. */
+.artisan-version-bar {
+    align-items: center;
+    display: inline-flex;
+    font-size: 0.8em;
+    gap: 0.4rem;
+    margin-inline-end: 0.75rem;
+    vertical-align: middle;
+}
+
+.artisan-version-bar label {
+    color: var(--artisan-muted);
+}
+
+.artisan-version-bar select {
+    background: var(--artisan-page);
+    border: 1px solid var(--artisan-border);
+    border-radius: 0.35rem;
     color: var(--artisan-ink);
-    font-size: 0.75em;
-    margin-top: 3rem;
-    padding-top: 1rem;
+    font: inherit;
+    padding: 0.15rem 0.4rem;
+}
+
+.artisan-version-bar select:focus-visible {
+    outline: 1px solid var(--artisan-red);
+    outline-offset: 0;
 }
 
 .searchbar input,
