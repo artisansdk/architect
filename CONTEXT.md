@@ -107,6 +107,45 @@ An `Error` subclass that normalizes an uncaught error into `{ source: "window" |
 **ErrorsProvider**:
 Included in `defaultProviders`. Registers `"events"` (a **Bus**) if nothing else already has, then wires `window.addEventListener("error"/"unhandledrejection", ...)` in `boot()` to dispatch an **ArchitectError** onto it — same-origin-filtered for window errors. A no-op under SSR (`boot()` checks for `window`). React's `ErrorBoundary` (wrapped around the tree by `ApplicationProvider`/`ContextProvider`) dispatches a third source, `"react"`, the same way — but only if `"events"` is bound, independent of whether the fallback UI renders.
 
+**Console**:
+The Laravel-Artisan-style CLI subsystem, exposed as the `architect` binary and the `@artisansdk/architect/console` subpath. Node/Bun-only — it never touches `window`, unlike **Application**. Package authors write a **Command** and depend only on Architect abstractions; the argv parser (`@bomb.sh/args`) is sealed inside **ArgsConsoleDriver**.
+_Avoid_: CLI, Artisan, kernel
+
+**ConsoleApplication**:
+The Node/Bun orchestrator, the CLI counterpart to **Application**. Owns a **ContainerContract**, a **CommandRegistry**, a **SignatureParser** and one **ConsoleDriver**. `.add()`/`.withCommands()` register commands, `.discover()` pulls in commands from the package manifest, `.run(argv)` resolves to an exit code. Commands are resolved through the container so constructor DI works.
+_Avoid_: console app, CLI app
+
+**Command**:
+The public base every CLI command extends. Declares a Laravel-style `signature` string and a `description`; implements `handle()`. Reads arguments/options through an injected **Input**, writes through an injected **Output**, and prompts through a **PromptDriver** — never `process.argv`/`process.stdout`/`@bomb.sh/args`/`@clack/prompts` directly. `handle()` returns nothing (exit 0) or an explicit code.
+_Avoid_: console command, handler
+
+**SignatureParser**:
+Parses a `signature` string into a driver-agnostic `{ name, arguments, options }`. Supports `{arg}`, `{arg?}`, `{arg=default}`, `{arg*}`, `{--flag}`, `{--opt=}`, `{--opt=default}`, `{--opt=*}`, `{--a|alias}`, and trailing ` : description`.
+
+**ConsoleDriver / ArgsConsoleDriver**:
+The seam that keeps the argv parser an implementation detail — exactly what **PromptDriver** does for `@clack/prompts`. `register(CommandDefinition)` + `run(argv): Promise<number>`. **ArgsConsoleDriver** is the only shipped implementation and the only file that imports `@bomb.sh/args`. `@bomb.sh/args` only tokenises one command's flags (`parse(argv, { boolean, string, array, alias })` → `{ _, ...flags }`); command routing, `--help`, `--version`, exit codes and unknown-command handling are all Architect's own logic in the driver. A bare namespace (`architect vendor`, with no `vendor` command but a `vendor:*` one) is routed to `list <namespace>`; a bare unknown token still errors.
+
+**CommandDefinition**:
+Architect's driver-agnostic description of a runnable command: `name`, `description`, parsed `arguments`/`options`, `hidden`, and a `handle(ParsedInput): Promise<number>` closure that resolves the command from the container, injects **Input**/**Output** and returns an exit code. A **ConsoleDriver** only ever sees this — never **Command**.
+
+**CommandRegistry**:
+The set of known commands keyed by signature name. Registering an already-registered name throws — this is how duplicate command names across discovered packages surface rather than silently shadowing.
+
+**Input / Output**:
+The read and write sides of a command invocation. **Input** exposes `argument()`/`option()`/`arguments()`/`options()` over one parsed argv, plus `passthrough()`/`hasPassthrough()` for the tokens after a standalone `--` (unparsed — the driver splits argv there before flag parsing); **Output** exposes `line`/`info`/`warn`/`error`/`comment` over a swappable `OutputWriter` (a `BufferedOutputWriter` captures lines in tests). Colour is applied only when the sink is a real stream on a TTY.
+
+**Shell completions**:
+`architect complete <shell>` prints a `zsh`/`bash`/`fish`/`powershell` completion script (via `@bomb.sh/tab`, sealed inside `CompleteCommand`); the installed script calls `architect complete -- <words>` on each <TAB>, which arrives as **Input** `passthrough()` and is answered from the live command/option registry so suggestions never go stale. `@bomb.sh/tab`'s `RootCommand` is instantiated per invocation (not the module singleton) so it stays isolated. Completion output is the one place a command writes raw machine-readable text to stdout rather than through **Output**.
+
+**Package manifest**:
+The cached `node_modules/.cache/architect/packages.json` written by `architect package:discover`. Built by walking the project's declared dependencies for a `package.json#architect` block (`commands`, `publishes`). No **ServiceProvider** is required for a package to contribute commands or publishable assets. `ConsoleApplication.discover()` dynamically imports and registers each listed command.
+
+**vendor:publish**:
+Copies package stub files declared under `architect.publishes.<tag>` into the consuming project. Filters: `--package`, `--tag` (repeatable), `--force` (overwrite existing; without it, existing files are skipped).
+
+**PromptDriver**:
+Keeps the terminal prompt library (`@clack/prompts`) an implementation detail. The `text`/`password`/`confirm`/`select`/`multiselect` functions from `@artisansdk/architect/prompts` delegate to the active driver. **ClackPromptDriver** is the default; in a non-TTY context every prompt falls back to its default or throws `NonInteractiveError`. **FakePromptDriver** answers by label or in call order for tests and records every prompt on `asked`.
+
 ## Relationships
 
 - An **Application** runs one or more **ServiceProviders** in registration order
@@ -119,6 +158,11 @@ Included in `defaultProviders`. Registers `"events"` (a **Bus**) if nothing else
 - A **StoreManager**, **CacheManager**, and **LogManager** each manage a set of named **Drivers** with a **Fallback chain**
 - A **StackLogger** fans out log calls to multiple named **Drivers** — errors are swallowed per driver
 - An **Application** holds exactly one **Renderer**, which mounts one root component
+- A **ConsoleApplication** is the Node/Bun peer of **Application** — same container-first spirit, no `window`
+- A **ConsoleApplication** routes argv through one **ConsoleDriver** (**ArgsConsoleDriver**) to a **Command** resolved from the container
+- A **Command** reads through **Input**, writes through **Output**, and prompts through a **PromptDriver** — never a runtime global or `@bomb.sh/args`/`@clack/prompts`
+- A **CommandRegistry** rejects duplicate command names, including those pulled from the **Package manifest**
+- A **PromptDriver** is to `@clack/prompts` what a **ConsoleDriver** is to `@bomb.sh/args`
 
 ## Example dialogue
 

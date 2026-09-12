@@ -29,8 +29,15 @@ export interface FacadeInstance<T = unknown> {
     [key: string]: any
 }
 
+/**
+ * The static type of a facade: its own API ({@link FacadeInstance}) plus the
+ * forwarded surface of the resolved instance `T`, so `Scheduler.task(...)` is
+ * type-checked and autocompletes with the real method signatures.
+ */
+export type Facade<T> = FacadeInstance<T> & T
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createFacade<T = any>(accessor: string): FacadeInstance<T> {
+export function createFacade<T = any>(accessor: string): Facade<T> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let proxy: any
 
@@ -117,5 +124,5 @@ export function createFacade<T = any>(accessor: string): FacadeInstance<T> {
         },
     })
 
-    return proxy as FacadeInstance<T>
+    return proxy as Facade<T>
 }
