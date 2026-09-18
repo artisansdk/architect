@@ -24,10 +24,9 @@ class ApiServiceProvider extends ServiceProvider {
   }
 }
 
-const application = Application.configure({
-  config: { api: { url: "https://api.example.com" } },
-})
-.withProviders([new ApiServiceProvider()])
+const application = Application
+  .use({ api: { url: "https://api.example.com" } })
+  .use(ApiServiceProvider)
 ```
 
 ```typescript

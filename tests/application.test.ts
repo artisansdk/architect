@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, mock, test } from "bun:test"
 import ConfigRepository from "@/config/repository"
 import BuiltinContainer from "@/container/adapters/builtin"
-import { Application, make, setContainer } from "@/foundation/application"
-import { applicationTestingHelpers } from "@/foundation/application_test.helpers"
+import { Application } from "@/foundation/application"
+import { make, setContainer } from "@/foundation/container"
+import { mergeConfigureOptions } from "@/foundation/options"
 import { defaultProviders } from "@/index"
 import ServiceProvider from "@/support/service-provider"
 
@@ -182,7 +183,7 @@ describe("Application", () => {
         expect(() => Application.make("demo")).toThrow("Application container is not available. Call run() first.")
     })
 
-    test("does not load config modules implicitly", () => {
+    test("layers static config over discovered config modules", () => {
         ;(
             globalThis as {
                 __iocConfigGlobForTests?: (
@@ -190,11 +191,17 @@ describe("Application", () => {
                     options?: { eager?: boolean },
                 ) => Record<string, unknown>
             }
-        ).__iocConfigGlobForTests = () => ({
-            "/src/config/app.ts": { default: { name: "From App Config" } },
-            "/src/config/cache.ts": { default: { store: "memory" } },
-            "/other/path/ignored.ts": { default: { nope: true } },
-        })
+        ).__iocConfigGlobForTests = (pattern) => {
+            // Mirror import.meta.glob: only paths under the requested pattern's directory match.
+            const prefix = String(pattern).split("**")[0]
+            const files: Record<string, unknown> = {
+                "./src/config/app.ts": { default: { name: "From App Config" } },
+                "./src/config/cache.ts": { default: { store: "memory" } },
+                "./other/path/ignored.ts": { default: { nope: true } },
+            }
+
+            return Object.fromEntries(Object.entries(files).filter(([path]) => path.startsWith(prefix)))
+        }
 
         ;(globalThis as { window: { addEventListener: (event: string, cb: () => void) => void } }).window = {
             addEventListener: () => {},
@@ -203,28 +210,29 @@ describe("Application", () => {
         const first = Application.configure({
             basePath: "./src",
             config: {
-                cache: { store: "memory" },
+                cache: { store: "local" },
             },
         }).run()
         const second = Application.configure({
             basePath: "./src",
             config: {
-                cache: { store: "memory" },
+                cache: { store: "local" },
             },
         }).run()
 
         const firstConfig = first.container.get(ConfigRepository)
         const secondConfig = second.container.get(ConfigRepository)
 
-        expect(firstConfig.get("app")).toBeNull()
-        expect(firstConfig.get<{ store: string }>("cache")).toEqual({ store: "memory" })
+        // Discovered files still load, and static config wins on conflicting keys.
+        expect(firstConfig.get<{ name: string }>("app")).toEqual({ name: "From App Config" })
+        expect(firstConfig.get<{ store: string }>("cache")).toEqual({ store: "local" })
         expect(firstConfig.get("ignored")).toBeNull()
         expect(firstConfig.all()).toEqual(secondConfig.all())
         expect(firstConfig.all()).not.toBe(secondConfig.all())
 
         // Config passed to configure should be cloned into each app instance.
         firstConfig.set("cache.store", "updated")
-        expect(secondConfig.get<string>("cache.store")).toBe("memory")
+        expect(secondConfig.get<string>("cache.store")).toBe("local")
 
         first.stop()
         second.stop()
@@ -311,15 +319,131 @@ describe("Application", () => {
         expect(running.container.get(ConfigRepository).get<string>("app.name")).toBe("From use()")
     })
 
+    test("use flattens arrays of classes, instances and nested arrays", () => {
+        ;(globalThis as { window: { addEventListener: (event: string, cb: () => void) => void } }).window = {
+            addEventListener: () => {},
+        }
+
+        class AlphaProvider extends ServiceProvider {
+            register(container: { bind: (id: string) => { toConstantValue: (v: unknown) => void } }) {
+                container.bind("alpha").toConstantValue("a")
+            }
+        }
+        class BetaProvider extends ServiceProvider {
+            register(container: { bind: (id: string) => { toConstantValue: (v: unknown) => void } }) {
+                container.bind("beta").toConstantValue("b")
+            }
+        }
+        class GammaProvider extends ServiceProvider {
+            register(container: { bind: (id: string) => { toConstantValue: (v: unknown) => void } }) {
+                container.bind("gamma").toConstantValue("g")
+            }
+        }
+
+        const running = Application.configure("./")
+            .use([AlphaProvider, new BetaProvider(), [new GammaProvider()]])
+            .run()
+
+        expect(running.container.get<string>("alpha")).toBe("a")
+        expect(running.container.get<string>("beta")).toBe("b")
+        expect(running.container.get<string>("gamma")).toBe("g")
+    })
+
+    test("use registers defaultProviders as an array", () => {
+        ;(globalThis as { window: { addEventListener: (event: string, cb: () => void) => void } }).window = {
+            addEventListener: () => {},
+        }
+
+        const running = Application.configure("./").use(defaultProviders).run()
+
+        expect(running.container.bound("cache")).toBe(true)
+        expect(running.container.bound("log")).toBe(true)
+    })
+
+    test("use treats a non-provider class as config", () => {
+        ;(globalThis as { window: { addEventListener: (event: string, cb: () => void) => void } }).window = {
+            addEventListener: () => {},
+        }
+
+        class AppConfig {
+            services = { mailer: "log" }
+        }
+
+        const running = Application.configure("./")
+            .use({ app: { name: "architect" } })
+            .use(AppConfig)
+            .run()
+
+        const config = running.container.get(ConfigRepository)
+        expect(config.get<string>("app.name")).toBe("architect")
+        expect(config.get<string>("services.mailer")).toBe("log")
+    })
+
+    test("use deep merges repeated config objects instead of clobbering", () => {
+        ;(globalThis as { window: { addEventListener: (event: string, cb: () => void) => void } }).window = {
+            addEventListener: () => {},
+        }
+
+        const running = Application.configure("./")
+            .use({ app: { name: "architect" } })
+            .use({ app: { debug: true } })
+            .run()
+
+        const config = running.container.get(ConfigRepository)
+        expect(config.get<{ name: string; debug: boolean }>("app")).toEqual({ name: "architect", debug: true })
+    })
+
+    test("static use bootstraps an application without configure", () => {
+        ;(globalThis as { window: { addEventListener: (event: string, cb: () => void) => void } }).window = {
+            addEventListener: () => {},
+        }
+
+        class DemoProvider extends ServiceProvider {
+            register(container: { bind: (id: string) => { toConstantValue: (v: unknown) => void } }) {
+                container.bind("demo").toConstantValue("value")
+            }
+        }
+
+        const running = Application.use(DemoProvider).run()
+
+        expect(running.container.get<string>("demo")).toBe("value")
+    })
+
+    test("withProviders accepts classes alongside instances", () => {
+        ;(globalThis as { window: { addEventListener: (event: string, cb: () => void) => void } }).window = {
+            addEventListener: () => {},
+        }
+
+        class AlphaProvider extends ServiceProvider {
+            register(container: { bind: (id: string) => { toConstantValue: (v: unknown) => void } }) {
+                container.bind("alpha").toConstantValue("a")
+            }
+        }
+        class BetaProvider extends ServiceProvider {
+            register(container: { bind: (id: string) => { toConstantValue: (v: unknown) => void } }) {
+                container.bind("beta").toConstantValue("b")
+            }
+        }
+
+        const running = Application.configure("./").withProviders([AlphaProvider, new BetaProvider()]).run()
+
+        expect(running.container.get<string>("alpha")).toBe("a")
+        expect(running.container.get<string>("beta")).toBe("b")
+    })
+
+    test("use still rejects plain functions", () => {
+        expect(() => Application.configure("./").use(() => {})).toThrow("cannot accept a plain function")
+    })
+
     test("configure options are merged with defaults", () => {
-        expect(applicationTestingHelpers.mergeConfigureOptions()).toEqual({
+        expect(mergeConfigureOptions()).toEqual({
             basePath: "./",
             container: { factory: null },
             config: {},
         })
 
         expect(
-            applicationTestingHelpers.mergeConfigureOptions({
+            mergeConfigureOptions({
                 basePath: "./src",
                 container: {},
             }),

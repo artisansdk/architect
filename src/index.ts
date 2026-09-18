@@ -29,7 +29,7 @@ export type {
 export { Bus } from "./events/bus"
 export { Dispatchable } from "./events/concerns/dispatchable"
 export { EventsProvider } from "./events/provider"
-export type { ApplicationConfigureOptions } from "./foundation/application"
+export type { ApplicationConfigureOptions, Usable } from "./foundation/application"
 export { Application } from "./foundation/application"
 export { default as HttpFactory } from "./http/factory"
 export { default as PendingRequest } from "./http/pending-request"

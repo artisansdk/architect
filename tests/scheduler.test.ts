@@ -198,6 +198,13 @@ describe("Scheduler", () => {
         expect(fn).not.toHaveBeenCalled()
     })
 
+    test("task() throws when a named task is registered without a handler", () => {
+        const s = new Scheduler()
+        expect(() => (s as unknown as { task: (name: string) => Task }).task("donate")).toThrow(
+            'Scheduler: task "donate" was registered without a handler',
+        )
+    })
+
     test("task() warns and overwrites on duplicate name", () => {
         const s = new Scheduler()
         const fn1 = mock()

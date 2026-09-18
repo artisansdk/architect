@@ -4,7 +4,7 @@ import type { EventSubscriber } from "@/events/bus"
 import { Bus } from "@/events/bus"
 import { Dispatchable } from "@/events/concerns/dispatchable"
 import { EventsProvider } from "@/events/provider"
-import { setContainer } from "@/foundation/application"
+import { setContainer } from "@/foundation/container"
 
 function makeContainer(bus: Bus) {
     const container = new BuiltinContainer()

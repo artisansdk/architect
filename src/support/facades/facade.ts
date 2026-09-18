@@ -1,4 +1,4 @@
-import { make } from "../../foundation/application"
+import { make } from "../../foundation/container"
 
 // Module-level state shared by all facades.
 const macroRegistry = new Map<string, Map<string, (...args: unknown[]) => unknown>>()
