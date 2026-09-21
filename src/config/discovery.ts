@@ -1,5 +1,5 @@
 import type { ConfigItems } from "./repository"
-import ConfigRepository from "./repository"
+import ConfigRepository, { mergeItems } from "./repository"
 
 type GlobLoader = (pattern: string | string[], options?: { eager?: boolean }) => Record<string, unknown>
 
@@ -72,11 +72,9 @@ function configPatternForBasePath(basePath: string): string {
 
 class EsmConfigLoader implements ConfigLoader {
     load(basePath: string, staticItems: ConfigItems = {}): ConfigItems {
-        const shouldLoadEsm = Object.keys(staticItems).length === 0
+        const esmItems = loadConfigFromModules(loadEsmConfigModules(basePath))
 
-        const esmItems = shouldLoadEsm ? loadConfigFromModules(loadEsmConfigModules(basePath)) : {}
-
-        return { ...esmItems, ...cloneItems(staticItems) }
+        return mergeItems(esmItems, cloneItems(staticItems))
     }
 }
 

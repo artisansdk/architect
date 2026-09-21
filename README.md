@@ -36,8 +36,9 @@ function App() {
   return <button onClick={() => counter.increment()}>Count: {counter.current()}</button>;
 }
 
-const application = Application.configure({ config: { app: { name: "Demo" } } })
-  .withProviders([new CounterProvider()]);
+const application = Application
+  .use({ app: { name: "Demo" } })
+  .use(CounterProvider);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <ContextProvider application={application}><App /></ContextProvider>

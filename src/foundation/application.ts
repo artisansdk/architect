@@ -2,55 +2,20 @@ import { createConfig } from "../config/discovery"
 import { registerGlobalEnv } from "../config/env"
 import { ConfigProvider } from "../config/provider"
 import type ConfigRepository from "../config/repository"
-import type { ConfigItems } from "../config/repository"
+import { mergeItems } from "../config/repository"
 import type { Container as Contract, Identifier } from "../container/contract"
-import { createRuntimeContainer, mergeRuntimeOptions, type RuntimeOptions } from "../container/runtime"
+import { createRuntimeContainer } from "../container/runtime"
+import { isClass } from "../support/reflect"
 import ServiceProvider, { type Cleanup, DeferrableServiceProvider } from "../support/service-provider"
+import { getContainer, make, setContainer } from "./container"
+import { type ApplicationConfigureOptions, type ApplicationResolvedOptions, mergeConfigureOptions } from "./options"
+import type { Usable } from "./usable"
 
-let current: Contract | null = null
-
-export function setContainer(container: Contract | null): void {
-    current = container
-}
-
-export function getContainer(): Contract | null {
-    return current
-}
-
-export function make<T>(identifier: Identifier<T>): T {
-    const container = getContainer()
-    if (!container) {
-        throw new Error("Application container is not available. Call run() first.")
-    }
-
-    return container.make<T>(identifier)
-}
-
-export type ApplicationConfigureOptions = {
-    basePath?: string
-    container?: RuntimeOptions
-    config?: ConfigItems
-}
-
-type ApplicationResolvedOptions = {
-    basePath: string
-    container: ReturnType<typeof mergeRuntimeOptions>
-    config: ConfigItems
-}
+export { getContainer, make, setContainer } from "./container"
+export type { ApplicationConfigureOptions, ApplicationResolvedOptions } from "./options"
+export type { Usable } from "./usable"
 
 registerGlobalEnv()
-
-function isClass(value: unknown): value is new () => unknown {
-    return typeof value === "function" && /^class\s/.test(Function.prototype.toString.call(value))
-}
-
-function mergeConfigureOptions(options: ApplicationConfigureOptions = {}): ApplicationResolvedOptions {
-    return {
-        basePath: options.basePath ?? "./",
-        container: mergeRuntimeOptions(options.container),
-        config: options.config ?? {},
-    }
-}
 
 export class Application {
     protected providers: ServiceProvider[]
@@ -79,14 +44,23 @@ export class Application {
         return make<T>(identifier)
     }
 
-    withProviders(providers: ServiceProvider[]) {
-        this.providers.push(...providers)
-        return this
+    static use(value: Usable | Usable[]): Application {
+        return Application.configure().use(value)
     }
 
-    use(provider: ServiceProvider | (new () => ServiceProvider)): this
-    use(config: ConfigItems): this
-    use(value: ServiceProvider | (new () => ServiceProvider) | ConfigItems) {
+    withProviders(providers: (ServiceProvider | (new () => ServiceProvider))[]) {
+        return this.use(providers)
+    }
+
+    use(value: Usable | Usable[]): this {
+        if (Array.isArray(value)) {
+            for (const item of value) {
+                this.use(item)
+            }
+
+            return this
+        }
+
         if (typeof value === "function") {
             if (!isClass(value)) {
                 throw new Error(
@@ -94,15 +68,8 @@ export class Application {
                 )
             }
 
-            const resolved = new value()
-
-            if (resolved instanceof ServiceProvider) {
-                this.providers.push(resolved)
-                return this
-            }
-
-            Object.assign(this.options.config, resolved)
-            return this
+            // A class is routed by what it produces, so use(Database) and use(new Database()) agree.
+            return this.use(new value() as Usable)
         }
 
         if (value instanceof ServiceProvider) {
@@ -110,7 +77,7 @@ export class Application {
             return this
         }
 
-        Object.assign(this.options.config, value)
+        mergeItems(this.options.config, value)
         return this
     }
 

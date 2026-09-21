@@ -5,14 +5,18 @@ A dependency injection library for frontend applications. It provides a lifecycl
 ## Language
 
 **Application**:
-The central orchestrator — a fluent builder consumers configure with `.withProviders([])`, `.withConfig()`, `.withRoot()`, and `.withRenderer()` before calling `.run()`.
+The central orchestrator — a fluent builder consumers register providers and config on with `.use()` (or the narrower `.withProviders([])`), optionally starting from `.configure()`, before calling `.run()`.
 _Avoid_: app instance, container app
+
+**use()**:
+The polymorphic registration method on Application. It detects what it is handed — a provider instance, a provider class, a plain config object, or an array of any of those — and routes it to the right place, so consumers don't choose a registration method per shape. Anything that is or produces a ServiceProvider becomes a provider; every other object is config. Available as a static entry point (`Application.use(...)`) and as an instance method. `.withProviders()` delegates to it.
+_Avoid_: register, add, with
 
 **Lifecycle**:
 The fixed sequence the Application follows: register all providers → boot all providers → mount renderer. Shutdown runs in exact reverse. No phase may be skipped or reordered.
 
 **ServiceProvider**:
-The unit of wiring — a class that encapsulates registration and boot for one feature area. Consumers subclass it and pass instances to `.withProviders([])`. This is the primary wiring API.
+The unit of wiring — a class that encapsulates registration and boot for one feature area. Consumers subclass it and pass the class or an instance to `.use()`. This is the primary wiring API.
 _Avoid_: plugin, module, service class
 
 **DeferrableServiceProvider**:
@@ -94,8 +98,12 @@ The result of a sent request — the http package's own class, exported as `Resp
 **Http fake**:
 A canned response registered on the **HttpFactory** via `Http.fake({ pattern: value })`, so an app builds and tests without a live API. Patterns are `*`-wildcard URL globs matched loosely on protocol; first match wins. `preventStrayRequests()` turns an unmatched request into a throw; `recorded()` returns the `[request, response]` history.
 
+**Container registry**:
+Module-level state (`src/foundation/container.ts`) holding the container of the Application that most recently ran — `setContainer()` publishes it from `run()`, `getContainer()` reads it, and `make()` resolves through it or throws if nothing has run. It exists so **Facades**, which are constructed at module load long before any Application, can bind late instead of holding a container of their own. `Application.make()` is a static delegate to it.
+_Avoid_: global container, app singleton
+
 **Facade**:
-A static proxy that forwards calls to a service resolved from the container — no instance caching of its own, every call re-resolves via `Application.make()`. Usable from `boot()` hooks onward — not in `register()` (register/boot contract). Calling a facade before `.run()` throws. Built-in facades: `App`, `Config`, `Cache`, `Store`, `Event`, `Log`.
+A static proxy that forwards calls to a service resolved from the container — no instance caching of its own, every call re-resolves through the **container registry** (`Application.make()`). Usable from `boot()` hooks onward — not in `register()` (register/boot contract). Calling a facade before `.run()` throws. Built-in facades: `App`, `Config`, `Cache`, `Store`, `Event`, `Log`.
 _Avoid_: static accessor, global service
 
 **Macro**:
