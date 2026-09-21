@@ -69,16 +69,36 @@ Each **ServiceProvider** is the sole owner of registration, booting, and cleanup
 
 ## Passing providers
 
-Pass provider instances to `withProviders()`:
+Pass provider instances or classes to `withProviders()`:
 
 ```typescript
 Application.configure()
   .withProviders([
-    new DatabaseProvider(),
+    DatabaseProvider,
     new AuthProvider(),
     new ApiProvider(),
   ])
   .run()
 ```
 
-Providers run in the order given.
+Providers run in the order given. A class is instantiated with no arguments; pass an instance when the provider takes constructor arguments.
+
+## `use()`
+
+`use()` inspects what it is given and routes it to the right place, so you do not have to pick a registration method:
+
+```typescript
+Application
+  .use(DatabaseProvider)                        // provider class — instantiated for you
+  .use(new AuthProvider())                      // provider instance
+  .use([DatabaseProvider, new AuthProvider()])  // arrays recurse, nested arrays too
+  .use(defaultProviders)                        // the built-in provider set
+  .use({ app: { name: "architect" } })          // anything else is config, deep merged
+  .run()
+```
+
+Anything that is (or produces) a **ServiceProvider** is registered as a provider; any other object is treated as config.
+
+`Application.use()` is also available as a static entry point — it creates an application with default options, so `.configure()` is only needed when you want to set `basePath` or a custom container. Repeated config objects deep merge rather than replace, so `.use({ app: { name } })` followed by `.use({ app: { debug: true } })` keeps both keys.
+
+Plain functions are rejected — pass a class, an instance, or a config object.

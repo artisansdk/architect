@@ -161,12 +161,16 @@ export class Scheduler implements Contract {
         if (typeof nameOrHandler === "function") return this.do(nameOrHandler)
 
         const name = nameOrHandler
+        if (!handler) {
+            throw new Error(`Scheduler: task "${name}" was registered without a handler`)
+        }
+
         if (this.named.has(name)) {
             console.warn(`Scheduler: task "${name}" already registered — overwriting`)
             const existing = this.named.get(name)
             if (existing) this.remove(existing)
         }
-        const task = this.do(handler!).name(name)
+        const task = this.do(handler).name(name)
         this.named.set(name, task)
         return task
     }

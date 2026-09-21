@@ -7,6 +7,15 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
+export function mergeItems(target: ConfigItems, source: ConfigItems): ConfigItems {
+    for (const [key, value] of Object.entries(source)) {
+        const existing = target[key]
+        target[key] = isPlainObject(existing) && isPlainObject(value) ? mergeItems({ ...existing }, value) : value
+    }
+
+    return target
+}
+
 function resolveDefault<T>(defaultValue: T | (() => T)): T {
     return typeof defaultValue === "function" ? (defaultValue as () => T)() : defaultValue
 }

@@ -59,6 +59,15 @@ Application.configure({
 })
 ```
 
+Or register it with `use()`, which treats any object that isn't a **ServiceProvider** as config and deep merges each call:
+
+```typescript
+Application
+  .use({ app: { name: "My App" } })
+  .use({ app: { debug: false } })      // merges — `name` survives
+  .use({ cache: { default: "memory" } })
+```
+
 ## File-based config
 
 In a Vite project, place config files in a `config/` directory:
@@ -71,7 +80,9 @@ export default {
 }
 ```
 
-The Application loads these automatically via `import.meta.glob`, **but only when `Application.configure()` is called with no inline `config` at all**. Passing any inline config — even a single unrelated key — skips file discovery entirely instead of merging with it; the two sources don't combine. The filename becomes the top-level key — `config/app.ts` is available under `"app.*"`.
+The Application loads these automatically via `import.meta.glob`. The filename becomes the top-level key — `config/app.ts` is available under `"app.*"`.
+
+File-based and inline config combine: discovered files load first, then inline config (from `configure({ config })` or `use()`) is deep merged over them, so inline values win on conflicting keys and unrelated keys from both sources survive.
 
 ## Environment variables
 

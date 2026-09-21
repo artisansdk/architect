@@ -1,5 +1,5 @@
 {
-    "$schema": "https://biomejs.dev/schemas/2.5.1/schema.json",
+    "$schema": "https://biomejs.dev/schemas/2.5.11/schema.json",
 
     "vcs": {
         "enabled": true,
@@ -29,10 +29,12 @@
         "rules": {
             "preset": "recommended",
             "style": {
-                "useSingleVarDeclarator": "off"
+                "useSingleVarDeclarator": "off",
+                "noDescendingSpecificity": "off"
             },
             "complexity": {
-                "noStaticOnlyClass": "off"
+                "noStaticOnlyClass": "off",
+                "noImportantStyles": "off"
             },
             "suspicious": {
                 "noExplicitAny": "off",
