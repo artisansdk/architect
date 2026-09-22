@@ -237,35 +237,36 @@ Run a callback within a timing window.
 import { Timebox } from "@artisansdk/architect"
 
 // Resolves no sooner than 100ms, however fast the callback returns.
-const user = await Timebox.make(100, () => authenticate(email, password))
+const user = await Timebox.make(100, () => authenticate(email, password)).run()
 ```
 
-A `[start, end]` tuple also delays the callback: it doesn't begin until `start` has elapsed, and the timebox doesn't resolve until `end` has — both measured from the moment the timebox is awaited:
+A `[start, end]` tuple also delays the callback: it doesn't begin until `start` has elapsed, and the timebox doesn't resolve until `end` has — both measured from the moment the timebox is run:
 
 ```typescript
 // Waits 50ms, runs the callback, then pads out to 200ms total.
-const user = await Timebox.make([50, 200], () => authenticate(email, password))
+const user = await Timebox.make([50, 200], () => authenticate(email, password)).run()
 ```
 
-`Timebox.make(window, callback)` is sugar for `new Timebox(window, callback)`. Either way you get the timebox, not a promise — nothing runs until you await it, and the callback runs once no matter how often you await. `catch()` and `finally()` chain off the timebox itself:
+`Timebox.make(window, callback)` is sugar for `new Timebox(window, callback)`. Either way you get the timebox, not a promise — nothing runs until you call `run()`, and every `run()` runs the callback again. `then()`, `catch()` and `finally()` are builder methods: they queue handlers and hand the timebox back, so a whole chain can be built before anything runs.
 
 ```typescript
 const user = await Timebox.make(100, () => authenticate(email, password))
   .catch(() => null)
   .finally(() => metrics.increment("auth.attempt"))
+  .run()
 ```
 
-A callback that overruns the window isn't delayed further, and one that throws still throws only after the window has elapsed — an error is exactly the case whose timing you're hiding.
+The queued handlers run against the settled callback once the window has elapsed, never before it. A callback that overruns the window isn't delayed further, and one that throws still rejects only after the window has elapsed — an error is exactly the case whose timing you're hiding.
 
-Use `wrap()` where something expects a callback rather than a promise — it hands back a thunk that runs the timebox when invoked:
+Use `wrap()` where something expects a callback rather than a promise — it closes the chain and hands back a thunk that runs the timebox when invoked:
 
 ```typescript
-const timebox = Timebox.make(100, () => track(state))
-
-setState(state, timebox.wrap()) // sugar for a () => timebox-runs-itself closure
+setState(state, Timebox.make(100, () => track(state))
+  .then((result) => report(result))
+  .wrap())
 ```
 
-Awaiting a timebox runs its callback once and caches the result; the wrapped thunk instead runs the window afresh on every invocation, since a callback is expected to be called more than once. Both share the timebox's `returnEarly()` state.
+The thunk runs the window afresh on every invocation, since a callback is expected to be called more than once, replaying the queued handlers each time.
 
 Call `returnEarly()` on the timebox from inside the callback to skip the remaining wait, once you know there's nothing left to hide:
 
@@ -274,17 +275,17 @@ const user = await Timebox.make(100, async (timebox) => {
   const user = await authenticate(email, password)
   timebox.returnEarly() // succeeded, no need to pad
   return user
-})
+}).run()
 ```
 
-Because the timebox is returned before it runs, you can also set it up front — `returnEarly()` before awaiting skips both waits, and `dontReturnEarly()` restores them:
+Because the timebox is returned before it runs, you can also set it up front — `returnEarly()` before running skips both waits, and `dontReturnEarly()` restores them:
 
 ```typescript
 const timebox = Timebox.make([50, 200], () => authenticate(email, password))
 
 if (!config.get("auth.timing_protection")) timebox.returnEarly()
 
-const user = await timebox
+const user = await timebox.run()
 ```
 
 > Note: The window is a floor, not a precise deadline — JavaScript timers drift by a few milliseconds, so keep it comfortably larger than the variance you're masking.
