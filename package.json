@@ -378,6 +378,11 @@
             "bun": "./src/support/manager.ts",
             "default": "./dist/support/manager.js"
         },
+        "./timebox": {
+            "types": "./dist/support/timebox.d.ts",
+            "bun": "./src/support/timebox.ts",
+            "default": "./dist/support/timebox.js"
+        },
         "./signal": {
             "types": "./dist/support/signal.d.ts",
             "bun": "./src/support/signal.ts",

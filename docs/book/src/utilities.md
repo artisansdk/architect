@@ -228,3 +228,45 @@ const result = await send(user)
   .through([validate, fetchProfile])
   .thenReturn()
 ```
+
+## Timebox
+
+Run a callback within a timing window.
+
+```typescript
+import { Timebox } from "@artisansdk/architect"
+
+// Resolves no sooner than 100ms, however fast the callback returns.
+const user = await Timebox.make(100, () => authenticate(email, password))
+```
+
+A `[start, end]` tuple also delays the callback: it doesn't begin until `start` has elapsed, and the timebox doesn't resolve until `end` has — both measured from the moment the timebox is awaited:
+
+```typescript
+// Waits 50ms, runs the callback, then pads out to 200ms total.
+const user = await Timebox.make([50, 200], () => authenticate(email, password))
+```
+
+`make()` returns the timebox, not a promise — nothing runs until you await it, and the callback runs once no matter how often you await. A callback that overruns the window isn't delayed further, and one that throws still throws only after the window has elapsed — an error is exactly the case whose timing you're hiding.
+
+Call `returnEarly()` on the timebox from inside the callback to skip the remaining wait, once you know there's nothing left to hide:
+
+```typescript
+const user = await Timebox.make(100, async (timebox) => {
+  const user = await authenticate(email, password)
+  timebox.returnEarly() // succeeded, no need to pad
+  return user
+})
+```
+
+Because the timebox is returned before it runs, you can also set it up front — `returnEarly()` before awaiting skips both waits, and `dontReturnEarly()` restores them:
+
+```typescript
+const timebox = Timebox.make([50, 200], () => authenticate(email, password))
+
+if (!config.get("auth.timing_protection")) timebox.returnEarly()
+
+const user = await timebox
+```
+
+> Note: The window is a floor, not a precise deadline — JavaScript timers drift by a few milliseconds, so keep it comfortably larger than the variance you're masking.
