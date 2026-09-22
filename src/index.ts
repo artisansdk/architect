@@ -62,6 +62,8 @@ export { DeferrableServiceProvider, default as ServiceProvider } from "./support
 export type { Unsubscribe as SignalUnsubscribe } from "./support/signal"
 export { Signal } from "./support/signal"
 export { Str } from "./support/str"
+export type { Callback as TimeboxCallback, Window as TimeboxWindow } from "./support/timebox"
+export { Timebox } from "./support/timebox"
 
 import { CacheProvider } from "./cache/provider"
 import { ErrorsProvider } from "./errors/provider"
