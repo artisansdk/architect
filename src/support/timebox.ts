@@ -2,24 +2,26 @@ export type Window = number | [start: number, end: number]
 
 export type Callback<T> = (timebox: Timebox<T>) => T | PromiseLike<T>
 
-export class Timebox<T = unknown> implements PromiseLike<T> {
+type Handler = ["then" | "catch" | "finally", any[]]
+
+export class Timebox<T = unknown> {
     protected earlyReturn = false
-    protected promise?: Promise<T>
+    protected handlers: Handler[] = []
 
     /**
-     * Run a callback within a timing window, measured from the moment the timebox is awaited.
+     * Run a callback within a timing window, measured from the moment the timebox is run.
      *
      * A number is a floor: it resolves no sooner than `milliseconds`. A tuple `[start, end]`
      * also delays the callback until `start` has elapsed.
      *
-     *     await Timebox.make([50, 200], () => authenticate(email, password))
+     *     await Timebox.make([50, 200], () => authenticate(email, password)).run()
      */
     static make<T>(window: Window, callback: Callback<T>): Timebox<T> {
         return new Timebox(window, callback)
     }
 
     /**
-     * Build a timebox around a window and a callback. Nothing runs until it is awaited.
+     * Build a timebox around a window and a callback. Nothing runs until `run()`.
      */
     constructor(
         protected window: Window,
@@ -27,18 +29,36 @@ export class Timebox<T = unknown> implements PromiseLike<T> {
     ) {}
 
     /**
-     * Await the timebox, running the callback inside its window.
+     * Queue a handler for when the window closes.
      *
-     * Thenable rather than a `Promise` subclass — `catch()` and `finally()` delegate to
-     * the same underlying promise, so the callback runs once however often the timebox
-     * is awaited.
+     * Chaining builds the timebox rather than running it: `then()`, `catch()` and
+     * `finally()` record handlers and return the timebox, so the chain can be closed
+     * with `wrap()` and handed to something that takes a callback. Handlers run against
+     * the settled callback once the window has elapsed, never before it.
+     *
+     * ponytail: a builder, not a thenable — `await timebox` would hang. Await `run()`.
      */
-    // biome-ignore lint/suspicious/noThenProperty: being awaitable is the point
-    then<TResult1 = T, TResult2 = never>(
-        onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null,
-        onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null,
-    ): Promise<TResult1 | TResult2> {
-        return this.resolve().then(onfulfilled, onrejected)
+    // biome-ignore lint/suspicious/noThenProperty: mirrors the promise chain it builds
+    then(
+        onfulfilled?: ((value: T) => any) | undefined | null,
+        onrejected?: ((reason: any) => any) | undefined | null,
+    ): this {
+        return this.tap("then", [onfulfilled, onrejected])
+    }
+
+    /**
+     * Record a handler to apply once the window closes.
+     */
+    protected tap(method: Handler[0], args: any[]): this {
+        this.handlers.push([method, args])
+        return this
+    }
+
+    /**
+     * Replay the queued handlers onto the settled callback.
+     */
+    protected settle(promise: Promise<T>): Promise<T> {
+        return this.handlers.reduce<Promise<T>>((chain, [method, args]) => (chain[method] as any)(...args), promise)
     }
 
     /**
@@ -55,7 +75,7 @@ export class Timebox<T = unknown> implements PromiseLike<T> {
     /**
      * Normalize the value into the expected window.
      */
-    protected normalize(value: number | [start: number, end: number]) {
+    protected normalize(value: Window): [start: number, end: number] {
         const [start, end] = typeof value === "number" ? [0, value] : value
 
         if (start < 0 || end < start) {
@@ -66,14 +86,14 @@ export class Timebox<T = unknown> implements PromiseLike<T> {
     }
 
     /**
-     * Wait out the window around the callback, once the timebox is awaited.
+     * Wait out the window around the callback, then hand it to the queued handlers.
      *
      * The window is measured from here, not from construction, so a timebox can be built
      * and configured before its clock starts. A callback that overruns the window is not
-     * delayed further, and one that throws still throws only after the window elapsed —
+     * delayed further, and one that throws still rejects only after the window elapsed —
      * an error is exactly the case whose timing is being hidden.
      */
-    protected async run(): Promise<T> {
+    async run(): Promise<T> {
         const [start, end] = this.normalize(this.window)
 
         const began = performance.now()
@@ -92,15 +112,7 @@ export class Timebox<T = unknown> implements PromiseLike<T> {
         const remainder = end - (performance.now() - began)
         if (!this.earlyReturn && remainder > 0) await this.sleep(remainder)
 
-        if (failed) throw error
-        return result as T
-    }
-
-    /**
-     * Resolve one promise behind `then()`, `catch()` and `finally()`, started on first use.
-     */
-    protected resolve(): Promise<T> {
-        return (this.promise ??= this.run())
+        return this.settle(failed ? Promise.reject(error) : Promise.resolve(result as T))
     }
 
     /**
@@ -108,11 +120,13 @@ export class Timebox<T = unknown> implements PromiseLike<T> {
      *
      * For handing a timebox to something that takes a callback:
      *
-     *     setState(state, Timebox.make(100, () => track(state)).wrap())
+     *     setState(state, Timebox.make(100, () => track(state))
+     *         .then((result) => report(result))
+     *         .catch((error) => warn(error))
+     *         .wrap())
      *
-     * Unlike awaiting the timebox, which runs the callback once and caches the result,
-     * the thunk runs the window afresh on every invocation — a callback is expected to
-     * be called more than once.
+     * The thunk runs the window afresh on every invocation — a callback is expected to
+     * be called more than once — replaying the queued handlers each time.
      */
     wrap(): () => Promise<T> {
         return () => this.run()
@@ -121,17 +135,15 @@ export class Timebox<T = unknown> implements PromiseLike<T> {
     /**
      * Handle a rejection.
      */
-    catch<TResult = never>(
-        onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null,
-    ): Promise<T | TResult> {
-        return this.resolve().catch(onrejected)
+    catch(onrejected?: ((reason: any) => any) | undefined | null): this {
+        return this.tap("catch", [onrejected])
     }
 
     /**
      * Run a callback once the window closes.
      */
-    finally(onfinally?: (() => void) | undefined | null): Promise<T> {
-        return this.resolve().finally(onfinally)
+    finally(onfinally?: (() => void) | undefined | null): this {
+        return this.tap("finally", [onfinally])
     }
 
     /**
