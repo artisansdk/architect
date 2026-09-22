@@ -3,12 +3,23 @@ import type { Container, Identifier } from "../container/contract"
 export type Cleanup = () => void
 
 export default class ServiceProvider {
-    register(_container: Container): void {}
+    /**
+     * Register the service to the container.
+     */
+    register(container: Container): void
+    register(): void {}
 
-    boot(_container: Container): void {}
+    /**
+     * Boot the service instance(s).
+     */
+    boot(container: Container): void
+    boot(): void {}
 
-    /** Called by the Application on shutdown, in reverse provider order. Tear down what boot() started. */
-    destroy(_container: Container): void {}
+    /**
+     * Called by the Application on shutdown, in reverse provider order. Tear down what boot() started.
+     */
+    destroy(container: Container): void
+    destroy(): void {}
 }
 
 export class DeferrableServiceProvider extends ServiceProvider {
