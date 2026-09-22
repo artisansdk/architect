@@ -1,3 +1,7 @@
+export type Window = number | [start: number, end: number]
+
+export type Callback<T> = (timebox: Timebox<T>) => T | PromiseLike<T>
+
 export class Timebox<T = unknown> implements PromiseLike<T> {
     protected earlyReturn = false
     protected promise?: Promise<T>
@@ -10,36 +14,31 @@ export class Timebox<T = unknown> implements PromiseLike<T> {
      *
      *     await Timebox.make([50, 200], () => authenticate(email, password))
      */
-    static make<T>(
-        milliseconds: number | [start: number, end: number],
-        callback: (timebox: Timebox<T>) => T | Promise<T>,
-    ): Timebox<T> {
-        return new Timebox(milliseconds, callback)
+    static make<T>(window: Window, callback: Callback<T>): Timebox<T> {
+        return new Timebox(window, callback)
     }
 
     /**
      * Build a timebox around a window and a callback. Nothing runs until it is awaited.
      */
     constructor(
-        protected window: number | [start: number, end: number],
-        protected callback: (timebox: Timebox<T>) => T | Promise<T>,
+        protected window: Window,
+        protected callback: Callback<T>,
     ) {}
 
     /**
      * Await the timebox, running the callback inside its window.
      *
-     * Thenable rather than a `Promise` subclass, so there is no `.catch()` or `.finally()`
-     * — await it, or pass both handlers here. The callback runs once however often the
-     * timebox is awaited.
+     * Thenable rather than a `Promise` subclass — `catch()` and `finally()` delegate to
+     * the same underlying promise, so the callback runs once however often the timebox
+     * is awaited.
      */
     // biome-ignore lint/suspicious/noThenProperty: being awaitable is the point
     then<TResult1 = T, TResult2 = never>(
         onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null,
         onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null,
-    ): PromiseLike<TResult1 | TResult2> {
-        this.promise ??= this.run()
-
-        return this.promise.then(onfulfilled, onrejected)
+    ): Promise<TResult1 | TResult2> {
+        return this.resolve().then(onfulfilled, onrejected)
     }
 
     /**
@@ -54,6 +53,19 @@ export class Timebox<T = unknown> implements PromiseLike<T> {
     }
 
     /**
+     * Normalize the value into the expected window.
+     */
+    protected normalize(value: number | [start: number, end: number]) {
+        const [start, end] = typeof value === "number" ? [0, value] : value
+
+        if (start < 0 || end < start) {
+            throw new RangeError(`Invalid timebox window: [${start}, ${end}]`)
+        }
+
+        return [start, end]
+    }
+
+    /**
      * Wait out the window around the callback, once the timebox is awaited.
      *
      * The window is measured from here, not from construction, so a timebox can be built
@@ -62,10 +74,7 @@ export class Timebox<T = unknown> implements PromiseLike<T> {
      * an error is exactly the case whose timing is being hidden.
      */
     protected async run(): Promise<T> {
-        const [start, end] = typeof this.window === "number" ? [0, this.window] : this.window
-        if (start < 0 || end < start) {
-            throw new RangeError(`Invalid timebox window: [${start}, ${end}]`)
-        }
+        const [start, end] = this.normalize(this.window)
 
         const began = performance.now()
         if (!this.earlyReturn && start > 0) await this.sleep(start)
@@ -88,10 +97,45 @@ export class Timebox<T = unknown> implements PromiseLike<T> {
     }
 
     /**
-     * Skip the waits that haven't happened yet.
+     * Resolve one promise behind `then()`, `catch()` and `finally()`, started on first use.
+     */
+    protected resolve(): Promise<T> {
+        return (this.promise ??= this.run())
+    }
+
+    /**
+     * Wrap the timebox in a thunk that runs it when invoked.
      *
-     * Called from inside the callback the leading delay has already elapsed, so only the
-     * trailing pad is dropped. Called before the timebox is awaited, both are.
+     * For handing a timebox to something that takes a callback:
+     *
+     *     setState(state, Timebox.make(100, () => track(state)).wrap())
+     *
+     * Unlike awaiting the timebox, which runs the callback once and caches the result,
+     * the thunk runs the window afresh on every invocation — a callback is expected to
+     * be called more than once.
+     */
+    wrap(): () => Promise<T> {
+        return () => this.run()
+    }
+
+    /**
+     * Handle a rejection.
+     */
+    catch<TResult = never>(
+        onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null,
+    ): Promise<T | TResult> {
+        return this.resolve().catch(onrejected)
+    }
+
+    /**
+     * Run a callback once the window closes.
+     */
+    finally(onfinally?: (() => void) | undefined | null): Promise<T> {
+        return this.resolve().finally(onfinally)
+    }
+
+    /**
+     * Skip the waits that haven't happened yet.
      */
     returnEarly(): this {
         this.earlyReturn = true

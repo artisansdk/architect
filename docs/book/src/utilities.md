@@ -247,7 +247,25 @@ A `[start, end]` tuple also delays the callback: it doesn't begin until `start` 
 const user = await Timebox.make([50, 200], () => authenticate(email, password))
 ```
 
-`make()` returns the timebox, not a promise — nothing runs until you await it, and the callback runs once no matter how often you await. A callback that overruns the window isn't delayed further, and one that throws still throws only after the window has elapsed — an error is exactly the case whose timing you're hiding.
+`Timebox.make(window, callback)` is sugar for `new Timebox(window, callback)`. Either way you get the timebox, not a promise — nothing runs until you await it, and the callback runs once no matter how often you await. `catch()` and `finally()` chain off the timebox itself:
+
+```typescript
+const user = await Timebox.make(100, () => authenticate(email, password))
+  .catch(() => null)
+  .finally(() => metrics.increment("auth.attempt"))
+```
+
+A callback that overruns the window isn't delayed further, and one that throws still throws only after the window has elapsed — an error is exactly the case whose timing you're hiding.
+
+Use `wrap()` where something expects a callback rather than a promise — it hands back a thunk that runs the timebox when invoked:
+
+```typescript
+const timebox = Timebox.make(100, () => track(state))
+
+setState(state, timebox.wrap()) // sugar for a () => timebox-runs-itself closure
+```
+
+Awaiting a timebox runs its callback once and caches the result; the wrapped thunk instead runs the window afresh on every invocation, since a callback is expected to be called more than once. Both share the timebox's `returnEarly()` state.
 
 Call `returnEarly()` on the timebox from inside the callback to skip the remaining wait, once you know there's nothing left to hide:
 

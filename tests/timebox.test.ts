@@ -126,6 +126,65 @@ describe("Timebox", () => {
         expect(calls).toBe(1)
     })
 
+    test("catch() handles a rejection after the window", async () => {
+        const began = performance.now()
+        const caught = await Timebox.make(50, () => {
+            throw new Error("boom")
+        }).catch((error: Error) => error.message)
+
+        expect(caught).toBe("boom")
+        expect(performance.now() - began).toBeGreaterThanOrEqual(50 - SLOP)
+    })
+
+    test("finally() runs once the window closes", async () => {
+        let closed = false
+
+        expect(
+            await Timebox.make(20, () => "ok").finally(() => {
+                closed = true
+            }),
+        ).toBe("ok")
+        expect(closed).toBe(true)
+    })
+
+    test("then(), catch() and finally() share one run of the callback", async () => {
+        let calls = 0
+        const timebox = Timebox.make(1, () => ++calls)
+
+        await timebox.then()
+        await timebox.catch(() => 0)
+        await timebox.finally(() => {})
+        await timebox
+
+        expect(calls).toBe(1)
+    })
+
+    test("wrap() returns a thunk that runs the timebox when invoked", async () => {
+        const callback = Timebox.make(50, () => "ok").wrap()
+        const took = await elapsed(async () => {
+            expect(await callback()).toBe("ok")
+        })
+
+        expect(took).toBeGreaterThanOrEqual(50 - SLOP)
+    })
+
+    test("wrap() does not run until the thunk is invoked", async () => {
+        let calls = 0
+        Timebox.make(1, () => ++calls).wrap()
+        await wait(20)
+
+        expect(calls).toBe(0)
+    })
+
+    test("the wrapped thunk runs the window afresh on every invocation", async () => {
+        let calls = 0
+        const callback = Timebox.make(20, () => ++calls).wrap()
+
+        expect(await callback()).toBe(1)
+        expect(await callback()).toBe(2)
+        expect(calls).toBe(2)
+    })
+
     test("rejects an invalid window", async () => {
         await expect(Timebox.make([-1, 5], () => "ok").then()).rejects.toThrow(RangeError)
         await expect(Timebox.make([10, 5], () => "ok").then()).rejects.toThrow(RangeError)
