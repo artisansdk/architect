@@ -345,7 +345,7 @@ Failures are held to the floor too. A thrown error, an aborted condition and a p
 
 ### Conditions
 
-`when(closure)` lets the callback run only while the closure is truthy, and `unless(closure)` only while it is falsy. Every condition has to hold.
+`when(closure)` lets the callback run only while the closure is truthy, and `unless(closure)` only while it is falsy. Every condition has to hold. A closure may be async — it's judged by what it resolves to.
 
 A condition is read once, when the callback's start comes round — after the start delay, not before it. If it doesn't hold, the callback never runs and the run rejects with an `AbortError`:
 

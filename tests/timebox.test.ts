@@ -278,6 +278,37 @@ describe("Timebox", () => {
         ).rejects.toMatchObject({ name: "AbortError" })
     })
 
+    test("an async condition is judged by what it resolves to", async () => {
+        await expect(
+            Timebox.make(10, () => "ok")
+                .when(async () => false)
+                .run(),
+        ).rejects.toMatchObject({ name: "AbortError" })
+
+        expect(
+            await Timebox.make(10, () => "ok")
+                .unless(async () => false)
+                .run(),
+        ).toBe("ok")
+    })
+
+    test("a slow async condition is never polled concurrently", async () => {
+        let inFlight = 0
+        let peak = 0
+
+        await Timebox.make(1, () => wait(80))
+            .when(async () => {
+                peak = Math.max(peak, ++inFlight)
+                await wait(20)
+                inFlight--
+
+                return true
+            }, 5)
+            .run()
+
+        expect(peak).toBe(1)
+    })
+
     test("a condition that throws rejects the run with what it threw", async () => {
         await expect(
             Timebox.make(10, () => "ok")

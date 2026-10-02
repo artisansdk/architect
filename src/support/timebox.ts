@@ -125,25 +125,22 @@ export class Timebox<T = unknown, A extends unknown[] = []> {
     }
 
     /**
-     * Abort the run, cancelling whatever was handed the signal.
-     */
-    protected abort(name: "AbortError" | "TimeoutError", message: string): void {
-        this.controller.abort(new DOMException(message, name))
-    }
-
-    /**
      * Abort the run unless every condition still holds.
      *
-     * A condition that throws aborts with what it threw: the poll calls this from a
-     * timer, where nothing else would catch it.
+     * Conditions are awaited, so an async one is judged by what it resolves to rather
+     * than by the promise, which is always truthy. A condition that throws aborts with
+     * what it threw: the poll calls this from a timer, where nothing else would catch it.
      */
-    protected permit(): void {
+    protected async permit(): Promise<void> {
         try {
-            if (!this.whens.every((closure) => closure(this))) {
-                this.abort("AbortError", "Timebox aborted: a condition does not hold")
+            for (const closure of this.whens) {
+                if (!(await closure(this))) {
+                    throw new DOMException("Timebox aborted: a condition does not hold", "AbortError")
+                }
             }
         } catch (error) {
-            this.controller.abort(error)
+            // A slow check can land after the run is over, with nothing left to abort.
+            if (this.running) this.controller.abort(error)
         }
     }
 
@@ -230,7 +227,7 @@ export class Timebox<T = unknown, A extends unknown[] = []> {
         this.running = true
         try {
             // The callback runs only if the conditions hold once its start comes round.
-            this.permit()
+            await this.permit()
             this.signal.throwIfAborted()
 
             const aborted = new Promise<never>((_, reject) => {
@@ -239,13 +236,24 @@ export class Timebox<T = unknown, A extends unknown[] = []> {
 
             if (deadline !== undefined) {
                 timer = setTimeout(
-                    () => this.abort("TimeoutError", `Timebox exceeded its ${deadline}ms deadline`),
+                    () =>
+                        this.controller.abort(
+                            new DOMException(`Timebox exceeded its ${deadline}ms deadline`, "TimeoutError"),
+                        ),
                     Math.max(deadline - this.elapsed, 0),
                 )
             }
 
             if (this.interval !== undefined && this.whens.length > 0) {
-                poll = setInterval(() => this.permit(), this.interval)
+                // The interval keeps its own cadence however long a check takes, and a
+                // tick is skipped rather than stacked while a slow one is still out.
+                let checking = false
+                poll = setInterval(async () => {
+                    if (checking) return
+                    checking = true
+                    await this.permit()
+                    checking = false
+                }, this.interval)
             }
 
             const value = this.callback(this, ...args)
@@ -335,7 +343,7 @@ export class Timebox<T = unknown, A extends unknown[] = []> {
      * Let the callback run only while the closure is falsy.
      */
     unless(closure: Condition<T, A>, polling: number | false = false): this {
-        return this.when((timebox) => !closure(timebox), polling)
+        return this.when(async (timebox) => !(await closure(timebox)), polling)
     }
 
     /**
