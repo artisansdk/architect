@@ -1,4 +1,5 @@
 import { compareOp } from "./compare"
+import { LazyCollection } from "./lazy-collection"
 
 export class Collection<T> {
     protected items: T[]
@@ -51,6 +52,10 @@ export class Collection<T> {
 
     toArray(): T[] {
         return this.all()
+    }
+
+    lazy(): LazyCollection<T> {
+        return LazyCollection.make(this.items)
     }
 
     count(): number {

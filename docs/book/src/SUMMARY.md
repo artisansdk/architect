@@ -1,11 +1,11 @@
 # Summary
 
-- [Installation](./installation.md)
-- [Quick Start](./quick-start.md)
+- [Installation & Quick Start](./quick-start.md)
 - [Core Concepts]()
   - [Application & Lifecycle](./concepts/application.md)
   - [Service Providers](./concepts/service-providers.md)
   - [Container](./concepts/container.md)
+  - [Frameworks](./adapters.md)
 - [Built-in Services]()
   - [Config](./services/config.md)
   - [Cache](./services/cache.md)
@@ -16,7 +16,6 @@
   - [Scheduler](./services/scheduler.md)
   - [Http](./services/http.md)
 - [Facades](./facades.md)
-- [Framework Adapters](./adapters.md)
 - [Utilities](./utilities.md)
 - [Advanced]()
   - [Deferrable Providers](./advanced/deferrable-providers.md)

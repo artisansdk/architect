@@ -1,4 +1,4 @@
-# Framework Adapters
+# Frameworks
 
 Architect provides adapters for React, Vue, Solid, and Svelte. Each adapter integrates the Application container with the framework's component tree so any component can resolve services without prop-drilling.
 

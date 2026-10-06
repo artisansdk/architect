@@ -2,6 +2,22 @@ import { describe, expect, test } from "bun:test"
 import { Collection } from "@/support/collection"
 
 describe("Collection", () => {
+    test("lazy() defers transformations and supports repeated iteration", () => {
+        const visited: number[] = []
+        const source = new Collection([1, 2, 3])
+        const lazy = source.lazy().map((value) => {
+            visited.push(value)
+            return value * 2
+        })
+
+        expect(visited).toEqual([])
+        expect(lazy.first()).toBe(2)
+        expect(visited).toEqual([1])
+        expect(lazy.collect().all()).toEqual([2, 4, 6])
+        expect(source.all()).toEqual([1, 2, 3])
+        expect(new Collection<number>().lazy().all()).toEqual([])
+    })
+
     // ── Existing tests ─────────────────────────────────────────────────────────
 
     test("make() constructs from array or null", () => {

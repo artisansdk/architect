@@ -225,7 +225,7 @@ describe("Scheduler", () => {
         expect((s as any).named.has("x")).toBe(false)
     })
 
-    test("cancelTag() removes all tasks with that tag", () => {
+    test("cancel(tag) removes all tasks with that tag", () => {
         const fn1 = mock()
         const fn2 = mock()
         const s = new Scheduler()
@@ -233,20 +233,32 @@ describe("Scheduler", () => {
         const t2 = s.do(fn2).tag("popups")
         ;(t1 as any).startAt = past()
         ;(t2 as any).startAt = past()
-        s.cancelTag("popups")
+        s.cancel("popups")
         s.run()
         expect(fn1).not.toHaveBeenCalled()
         expect(fn2).not.toHaveBeenCalled()
     })
 
-    test("cancelTag() does not remove tasks with different tag", () => {
+    test("cancel(tag) does not remove tasks with different tag", () => {
         const fn = mock()
         const s = new Scheduler()
         const t = s.do(fn).tag("other")
         ;(t as any).startAt = past()
-        s.cancelTag("popups")
+        s.cancel("popups")
         s.run()
         expect(fn).toHaveBeenCalledTimes(1)
+    })
+
+    test("tag() throws when a task with that name exists", () => {
+        const s = new Scheduler()
+        s.task("popups", mock())
+        expect(() => s.do(mock()).tag("popups")).toThrow('Scheduler: tag "popups" conflicts with an existing task name')
+    })
+
+    test("task() throws when a tag with that name exists", () => {
+        const s = new Scheduler()
+        s.do(mock()).tag("popups")
+        expect(() => s.task("popups", mock())).toThrow('Scheduler: task "popups" conflicts with an existing tag')
     })
 })
 
