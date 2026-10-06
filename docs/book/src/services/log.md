@@ -2,12 +2,12 @@
 
 **LogManager** routes log messages to one or more named drivers. Drivers are resolved lazily and can be swapped at runtime with `.use()`. Three drivers ship out of the box: `console`, `null`, and `stack`.
 
-`LogProvider` is included in `defaultProviders`, so no extra setup is required for most apps:
+`LogProvider` is a core provider — like config, every application registers it automatically, so `"log"` is always bound. Framework code (e.g. the Scheduler) logs through it rather than calling `console` directly, and your services should too:
 
 ```typescript
-import { Application, defaultProviders } from "@artisansdk/architect"
+import { Application } from "@artisansdk/architect"
 
-Application.configure().withProviders(defaultProviders).run()
+Application.configure().run() // "log" is bound
 ```
 
 ## Basic usage

@@ -1,9 +1,23 @@
-import { describe, expect, mock, test } from "bun:test"
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test"
 import BuiltinContainer from "@/container/adapters/builtin"
+import { setContainer } from "@/foundation/container"
+import LogManager from "@/log/manager"
 import { SchedulerProvider } from "@/scheduler/provider"
 import { Scheduler, Task } from "@/scheduler/scheduler"
 
 const past = () => Date.now() - 1
+
+let warn: ReturnType<typeof mock>
+
+beforeEach(() => {
+    warn = mock()
+    const container = new BuiltinContainer()
+    container.instance("app", container)
+    container.instance(LogManager, { warn } as unknown as LogManager)
+    setContainer(container)
+})
+
+afterEach(() => setContainer(null))
 
 function makeTask(handler: () => void): Task {
     const t = new Task(handler)
@@ -90,6 +104,35 @@ describe("Task.execute()", () => {
         })
         const t = makeTask(fn)
         expect(() => t.execute()).not.toThrow()
+        expect(warn).toHaveBeenCalledTimes(1)
+    })
+
+    test("catch() handles the error instead of logging it", () => {
+        const error = new Error("boom")
+        const onError = mock()
+        const t = makeTask(() => {
+            throw error
+        }).catch(onError)
+        t.execute()
+        expect(onError).toHaveBeenCalledWith(error, t)
+        expect(warn).not.toHaveBeenCalled()
+    })
+
+    test("catch() handlers chain: a rethrow passes to the next, unhandled falls back to the log", () => {
+        const second = mock(() => {
+            throw new Error("again")
+        })
+        const t = makeTask(() => {
+            throw new Error("boom")
+        })
+            .catch((e) => {
+                throw e
+            })
+            .catch(second)
+        t.execute()
+        expect(second).toHaveBeenCalledTimes(1)
+        expect(warn).toHaveBeenCalledTimes(1)
+        expect(warn.mock.calls[0][1]).toEqual({ error: new Error("again") })
     })
 
     test("still returns isOnce after handler throws", () => {
@@ -216,6 +259,7 @@ describe("Scheduler", () => {
         s.run()
         expect(fn1).not.toHaveBeenCalled()
         expect(fn2).toHaveBeenCalledTimes(1)
+        expect(warn).toHaveBeenCalledTimes(1)
     })
 
     test("cancel(task) also cleans named registry", () => {
@@ -247,6 +291,19 @@ describe("Scheduler", () => {
         s.cancelTag("popups")
         s.run()
         expect(fn).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe("logging without a running app", () => {
+    test("unhandled errors and duplicate names do not throw", () => {
+        setContainer(null)
+        const s = new Scheduler()
+        s.task("dup", mock())
+        expect(() => s.task("dup", mock())).not.toThrow()
+        const t = makeTask(() => {
+            throw new Error("boom")
+        })
+        expect(() => t.execute()).not.toThrow()
     })
 })
 

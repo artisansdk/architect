@@ -5,6 +5,7 @@ import type ConfigRepository from "../config/repository"
 import { mergeItems } from "../config/repository"
 import type { Container as Contract, Identifier } from "../container/contract"
 import { createRuntimeContainer } from "../container/runtime"
+import { LogProvider } from "../log/provider"
 import { isClass } from "../support/reflect"
 import ServiceProvider, { type Cleanup, DeferrableServiceProvider } from "../support/service-provider"
 import { getContainer, make, setContainer } from "./container"
@@ -150,7 +151,8 @@ export class Application {
         setContainer(container)
         container.instance("app", container)
 
-        const providers = [new ConfigProvider(this.getConfigItems()), ...this.providers]
+        // Config and Log are core: every app gets them, so framework code can always log instead of using console.
+        const providers = [new ConfigProvider(this.getConfigItems()), new LogProvider(), ...this.providers]
 
         const deferred = new Set<ServiceProvider>(
             providers.filter(

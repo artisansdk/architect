@@ -131,7 +131,18 @@ scheduler.cancelTag("popups")
 
 ## Error handling
 
-If a task handler throws, the error is caught and logged to `console.warn`. The task is still removed if it was one-shot, and the rest of the tasks in the tick are unaffected.
+If a task handler throws, the error is caught and logged as a warning through the [log](./log.md) service. The task is still removed if it was one-shot, and the rest of the tasks in the tick are unaffected.
+
+Chain `.catch()` to handle the error yourself. Like a promise chain, handlers run in order — the first handles the error, one that rethrows passes its error to the next, and anything left unhandled falls back to the log:
+
+```typescript
+scheduler
+  .do(() => sync())
+  .every(30, "seconds")
+  .catch((error, task) => report(error))
+```
+
+Unlike [Timebox](../utilities.md#timebox), a task only has `.catch()` — there is no `.then()` or `.finally()`. A task's handler returns nothing to chain on, and a recurring task never settles; put follow-up work at the end of the handler itself.
 
 ## Using Scheduler directly
 

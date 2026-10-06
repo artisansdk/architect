@@ -360,6 +360,16 @@ describe("Application", () => {
         expect(running.container.bound("log")).toBe(true)
     })
 
+    test("log is bound even without any providers", () => {
+        ;(globalThis as { window: { addEventListener: (event: string, cb: () => void) => void } }).window = {
+            addEventListener: () => {},
+        }
+
+        const running = Application.configure("./").run()
+
+        expect(running.container.bound("log")).toBe(true)
+    })
+
     test("use treats a non-provider class as config", () => {
         ;(globalThis as { window: { addEventListener: (event: string, cb: () => void) => void } }).window = {
             addEventListener: () => {},

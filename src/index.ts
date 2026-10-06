@@ -68,14 +68,12 @@ export { Timebox } from "./support/timebox"
 import { CacheProvider } from "./cache/provider"
 import { ErrorsProvider } from "./errors/provider"
 import { HttpProvider } from "./http/provider"
-import { LogProvider } from "./log/provider"
 import { StoreProvider } from "./store/provider"
 import type ServiceProvider from "./support/service-provider"
 
 export const defaultProviders: ServiceProvider[] = [
     new StoreProvider(),
     new CacheProvider(),
-    new LogProvider(),
     new HttpProvider(),
     new ErrorsProvider(),
 ]

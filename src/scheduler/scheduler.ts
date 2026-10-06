@@ -1,4 +1,6 @@
+import LogManager from "../log/manager"
 import { compareOp } from "../support/compare"
+import { App } from "../support/facades/app"
 import type { Contract } from "./contract"
 
 type TimeUnit = "milliseconds" | "seconds" | "minutes" | "hours"
@@ -9,6 +11,20 @@ const toMs: Record<TimeUnit, number> = {
     minutes: 60_000,
     hours: 3_600_000,
 }
+
+/**
+ * Log a warning via the `LogManager`. Module-level because both `Task` and `Scheduler` warn
+ * and it holds no state; unexported so it stays out of the public API.
+ */
+function warn(message: string, context?: Record<string, unknown>): void {
+    try {
+        App.make(LogManager).warn(message, context)
+    } catch {
+        // ponytail: no running app (or a throwing driver) — never let logging abort the tick
+    }
+}
+
+type ErrorHandler = (error: unknown, task: Task) => unknown
 
 type Condition = {
     fn: () => unknown
@@ -23,6 +39,7 @@ type Condition = {
  */
 export class Task {
     protected handler: () => void
+    protected handlers: ErrorHandler[] = []
     protected conditions: Condition[] = []
     protected startAt: number = Date.now()
     protected interval: number = 0
@@ -33,6 +50,39 @@ export class Task {
 
     constructor(handler: () => void) {
         this.handler = handler
+    }
+
+    /**
+     * Handle an error thrown by the handler. Like a promise chain, handlers run in order:
+     * the first one handles the error, and one that rethrows passes its error to the next.
+     * An error nothing handles is logged as a warning via the `LogManager`.
+     */
+    catch(handler: ErrorHandler): this {
+        return this.tap(handler)
+    }
+
+    /**
+     * Record an error handler to apply when the handler throws.
+     */
+    protected tap(handler: ErrorHandler): this {
+        this.handlers.push(handler)
+        return this
+    }
+
+    /**
+     * Replay the queued error handlers onto the thrown error, falling back to the log.
+     */
+    protected settle(error: unknown): void {
+        for (const handler of this.handlers) {
+            try {
+                handler(error, this)
+                return
+            } catch (e) {
+                error = e
+            }
+        }
+
+        warn(`Scheduler: task "${this.taskName ?? "(anonymous)"}" threw`, { error })
     }
 
     /** Explicitly mark this task as one-shot (the default). */
@@ -109,8 +159,8 @@ export class Task {
 
     /**
      * Called by `Scheduler.run()` on each tick. Returns `true` when the task should be
-     * removed (i.e. it is a one-shot task and its handler ran). Handler errors are caught
-     * and warned so a single bad task never aborts the rest of the tick.
+     * removed (i.e. it is a one-shot task and its handler ran). Handler errors are passed
+     * to the `.catch()` handler so a single bad task never aborts the rest of the tick.
      */
     execute(): boolean {
         const now = Date.now()
@@ -129,7 +179,7 @@ export class Task {
         try {
             this.handler()
         } catch (e) {
-            console.warn(`Scheduler: task "${this.taskName ?? "(anonymous)"}" threw —`, e)
+            this.settle(e)
         }
 
         return this.isOnce
@@ -166,7 +216,7 @@ export class Scheduler implements Contract {
         }
 
         if (this.named.has(name)) {
-            console.warn(`Scheduler: task "${name}" already registered — overwriting`)
+            warn(`Scheduler: task "${name}" already registered — overwriting`)
             const existing = this.named.get(name)
             if (existing) this.remove(existing)
         }
