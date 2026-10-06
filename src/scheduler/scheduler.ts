@@ -18,8 +18,8 @@ type Condition = {
 }
 
 /**
- * A single scheduled action. Chain `.in()`, `.every()`, `.when()`, and `.unless()`
- * to configure timing and conditions before registering via `Scheduler.do()` or `Scheduler.task()`.
+ * A single scheduled action. Register via `Scheduler.task()`, then chain `.in()`,
+ * `.immediately()`, `.every()`, `.when()`, and `.unless()` to configure it.
  */
 export class Task {
     protected handler: () => void
@@ -31,8 +31,11 @@ export class Task {
     taskName: string | null = null
     taskTag: string | null = null
 
-    constructor(handler: () => void) {
+    protected isNameTaken: (n: string) => boolean
+
+    constructor(handler: () => void, isNameTaken: (n: string) => boolean = () => false) {
         this.handler = handler
+        this.isNameTaken = isNameTaken
     }
 
     /** Explicitly mark this task as one-shot (the default). */
@@ -47,8 +50,14 @@ export class Task {
         return this
     }
 
-    /** Assign a tag so the task can be cancelled as a group via `Scheduler.cancelTag()`. */
+    /**
+     * Assign a tag so the task can be cancelled as a group via `Scheduler.cancel()`.
+     * Throws if a named task already uses the string — names and tags share one namespace.
+     */
     tag(t: string): this {
+        if (this.isNameTaken(t)) {
+            throw new Error(`Scheduler: tag "${t}" conflicts with an existing task name`)
+        }
         this.taskTag = t
         return this
     }
@@ -144,16 +153,17 @@ export class Scheduler implements Contract {
     protected tasks: Set<Task> = new Set()
     protected named: Map<string, Task> = new Map()
 
-    /** Register a task and return it for further configuration. Defaults to one-shot. */
+    /** Alias for the anonymous `task(handler)` form. Defaults to one-shot. */
     do(handler: () => void): Task {
-        const task = new Task(handler)
+        const task = new Task(handler, (n) => this.named.has(n))
         this.tasks.add(task)
         return task
     }
 
     /**
-     * Register a named task. If a task with the same name already exists it is
-     * removed and a warning is logged before the new task is registered.
+     * Register an anonymous or named task. If a task with the same name already exists it is
+     * removed and a warning is logged before the new task is registered. Throws if the
+     * name is already in use as a tag — names and tags share one namespace.
      */
     task(handler: () => void): Task
     task(name: string, handler: () => void): Task
@@ -163,6 +173,10 @@ export class Scheduler implements Contract {
         const name = nameOrHandler
         if (!handler) {
             throw new Error(`Scheduler: task "${name}" was registered without a handler`)
+        }
+
+        if ([...this.tasks].some((t) => t.taskTag === name)) {
+            throw new Error(`Scheduler: task "${name}" conflicts with an existing tag`)
         }
 
         if (this.named.has(name)) {
@@ -181,21 +195,15 @@ export class Scheduler implements Contract {
     }
 
     /**
-     * Cancel a task by reference or by name. Passing a string matches the name
-     * namespace only — use `cancelTag()` to cancel by tag.
+     * Cancel a task by reference, or by string: the task with that name, or every
+     * task carrying that tag. Names and tags never collide, so a string matches one or the other.
      */
     cancel(ref: Task | string): void {
         if (ref instanceof Task) {
             this.remove(ref)
             return
         }
-        const task = this.named.get(ref)
-        if (task) this.remove(task)
-    }
-
-    /** Cancel all tasks carrying the given tag. */
-    cancelTag(tag: string): void {
-        for (const t of [...this.tasks].filter((t) => t.taskTag === tag)) {
+        for (const t of [...this.tasks].filter((t) => t.taskName === ref || t.taskTag === ref)) {
             this.remove(t)
         }
     }

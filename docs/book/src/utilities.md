@@ -2,59 +2,6 @@
 
 Architect ships several Laravel-inspired utility classes. Each is a separate subpath export — import only what you use.
 
-## Str
-
-String manipulation utilities, matching Laravel's `Str` helper. All methods are static functions on the `Str` object.
-
-```typescript doctest
-import { Str } from "@artisansdk/architect"
-
-Str.slug("Hello World")              // "hello-world"
-Str.camel("user_created")            // "userCreated"
-Str.snake("UserCreated")             // "user_created"
-Str.kebab("UserCreated")             // "user-created"
-Str.studly("user_created")           // "UserCreated"
-Str.title("hello world")             // "Hello World"
-Str.headline("user_created_event")   // "User Created Event"
-Str.limit("Long sentence here", 10)  // "Long sente..."
-Str.lower("HELLO")                   // "hello"
-Str.upper("hello")                   // "HELLO"
-Str.random(16)                       // random alphanumeric string
-Str.contains("hello world", "world") // true
-Str.startsWith("hello", "hel")       // true
-Str.endsWith("hello", "llo")         // true
-Str.replace("world", "there", "hello world") // "hello there"
-Str.slug("Héllo Wörld")              // "hello-world"
-Str.trim("  hello  ")               // "hello"
-Str.squish("hello   world")          // "hello world"
-Str.after("user@example.com", "@")   // "example.com"
-Str.before("user@example.com", "@")  // "user"
-Str.between("<div>", "<", ">")       // "div"
-Str.wordCount("hello world")         // 2
-Str.isUrl("https://example.com")     // true
-Str.isJson('{"key":"value"}')        // true
-Str.toBase64("hello")                // "aGVsbG8="
-Str.fromBase64("aGVsbG8=")           // "hello"
-```
-
-`registerGlobalHelpers()` makes any utility available on `globalThis` so it's accessible anywhere without importing. Pass only what you need — anything you don't import is treeshaken out of the bundle:
-
-```typescript
-import { registerGlobalHelpers, Str, Num, Arr } from "@artisansdk/architect"
-
-registerGlobalHelpers({ Str, Num, Arr })
-
-// Anywhere in the app, no import needed:
-Str.slug("Hello World")
-Num.currency(9.99, "USD")
-```
-
-The object shorthand `{ Str, Num, Arr }` uses the variable names as the keys on `globalThis`. You can rename a helper if needed:
-
-```typescript
-registerGlobalHelpers({ S: Str }) // → globalThis.S
-```
-
 ## Arr
 
 Array utilities, matching Laravel's `Arr` helper:
@@ -79,28 +26,9 @@ Arr.pluck(users, "name")   // ["Alice", "Bob"]
 Arr.keyBy(users, "id")     // { 1: { id: 1, name: "Alice" }, 2: { ... } }
 ```
 
-## Num
+### Available methods
 
-Number formatting utilities, matching Laravel's `Number` helper:
-
-```typescript doctest
-import { Num } from "@artisansdk/architect"
-
-Num.format(1234567.89)          // "1,234,567.89"
-Num.format(1234.5, 2)           // "1,234.50"
-Num.currency(9.99, "USD")       // "$9.99"
-Num.currency(9.99, "EUR", "de") // locale-specific format
-Num.percentage(75)              // "75%"
-Num.percentage(33.3, 1)         // "33.3%"
-Num.fileSize(1536)              // "2 KB"
-Num.fileSize(1048576, 1)        // "1.0 MB"
-Num.abbreviate(1500)            // "2K"
-Num.abbreviate(1500000, 1)      // "1.5M"
-Num.clamp(150, 0, 100)          // 100
-Num.clamp(-5, 0, 100)           // 0
-Num.between(5, 1, 10)           // true
-Num.between(15, 1, 10)          // false
-```
+`accessible()`, `add()`, `collapse()`, `crossJoin()`, `divide()`, `dot()`, `every()`, `except()`, `exceptValues()`, `exists()`, `first()`, `flatten()`, `forget()`, `get()`, `has()`, `hasAll()`, `hasAny()`, `isList()`, `join()`, `keyBy()`, `last()`, `map()`, `mapSpread()`, `mapWithKeys()`, `only()`, `onlyValues()`, `partition()`, `pluck()`, `prepend()`, `prependKeysWith()`, `pull()`, `push()`, `query()`, `random()`, `reject()`, `select()`, `set()`, `shuffle()`, `sole()`, `some()`, `sort()`, `sortDesc()`, `sortRecursive()`, `take()`, `toCssClasses()`, `toCssStyles()`, `undot()`, `where()`, `whereNotNull()`, `wrap()`.
 
 ## Collection
 
@@ -129,23 +57,24 @@ users.contains((u) => u.name === "Alice") // true
 users.toArray()            // original array
 ```
 
-## LazyCollection
+### Convert to a lazy collection
 
-Like `Collection` but lazily evaluated — values are not computed until you iterate or call `toArray()`. Useful for large datasets where you want to avoid building intermediate arrays:
+`lazy()` returns a `LazyCollection<T>` over the collection's existing items. Subsequent transformations run only as values are consumed, avoiding intermediate arrays. The original collection is already in memory; conversion does not make its initial loading lazy.
 
 ```typescript
-import { LazyCollection } from "@artisansdk/architect"
-
-const result = new LazyCollection(largeArray)
-  .filter((x) => x.active)
-  .map((x) => x.id)
-  .take(100)
+const names = users.lazy()
+  .filter((user) => user.age > 20)
+  .map((user) => user.name)
+  .take(1)
   .toArray()
+// ["Alice"]
 ```
+
+Use `collect()` on the lazy collection to return to an eager `Collection`.
 
 ## Fluent
 
-A generic dot-notation key-value wrapper. Useful for wrapping configuration objects or arbitrary records with a clean read/write API:
+A generic dot-notation key-value wrapper. Use `set()` to update attributes and chain further calls on the same instance:
 
 ```typescript doctest
 import { Fluent } from "@artisansdk/architect"
@@ -154,34 +83,75 @@ const obj = new Fluent({
   user: { name: "Alice", age: 30 },
   settings: { theme: "dark" },
 })
+  .set("user.age", 31)
+  .set("settings.theme", "light")
+  .set("settings.notifications", true)
 
 obj.get("user.name")              // "Alice"
 obj.get("user.missing", "guest")  // "guest"
-obj.get<number>("user.age")       // 30
+obj.get<number>("user.age")       // 31
 obj.has("settings.theme")         // true
-obj.set("user.age", 31)           // returns this (chainable)
-obj.toArray()                     // { user: { name: "Alice", age: 31 }, ... }
+obj.get("settings.theme")         // "light"
+obj.toArray()                     // a shallow copy of the attributes
 ```
 
-## Signal
+### JSON and string conversion
 
-A minimal observable value box — get/set/subscribe, no dependency tracking or batching:
+`toJson()` serializes the attributes; `json()` is an alias. Pass `true` to either for two-space indentation. `toString()` returns compact JSON and also supports `String(obj)` and string interpolation. The native `toJSON()` hook returns an attribute object so `JSON.stringify()` serializes a Fluent instance, including when nested in another object.
 
 ```typescript
-import { Signal } from "@artisansdk/architect"
+const profile = new Fluent()
+  .set("name", "Alice")
+  .set("active", true)
 
-const count = new Signal(0)
-
-const unsubscribe = count.subscribe((value) => console.log("count is now", value))
-
-count.set(1)              // logs "count is now 1"
-count.update((n) => n + 1) // logs "count is now 2"
-count.get()                // 2
-
-unsubscribe()
+profile.toJson()                 // '{"name":"Alice","active":true}'
+profile.json()                   // same JSON string
+profile.toJson(true)             // formatted JSON string
+profile.toString()               // same compact JSON string
+String(profile)                  // same compact JSON string
+JSON.stringify({ user: profile }) // '{"user":{"name":"Alice","active":true}}'
 ```
 
-`set()` is a no-op if the new value is `Object.is`-equal to the current one — listeners aren't notified. In React, [`useSignal(signal)`](./adapters.md#hooks) subscribes a component to a `Signal` and re-renders on change.
+## LazyCollection
+
+Like `Collection` but lazily evaluated — values are not computed until you iterate or call `toArray()`. Useful for large datasets where you want to avoid building intermediate arrays:
+
+```typescript
+import { LazyCollection } from "@artisansdk/architect"
+
+const result = LazyCollection.make(largeArray)
+  .filter((x) => x.active)
+  .map((x) => x.id)
+  .take(100)
+  .toArray()
+```
+
+## Num
+
+Number formatting utilities, matching Laravel's `Number` helper:
+
+```typescript doctest
+import { Num } from "@artisansdk/architect"
+
+Num.format(1234567.89)          // "1,234,567.89"
+Num.format(1234.5, 2)           // "1,234.50"
+Num.currency(9.99, "USD")       // "$9.99"
+Num.currency(9.99, "EUR", "de") // locale-specific format
+Num.percentage(75)              // "75%"
+Num.percentage(33.3, 1)         // "33.3%"
+Num.fileSize(1536)              // "2 KB"
+Num.fileSize(1048576, 1)        // "1.0 MB"
+Num.abbreviate(1500)            // "2K"
+Num.abbreviate(1500000, 1)      // "1.5M"
+Num.clamp(150, 0, 100)          // 100
+Num.clamp(-5, 0, 100)           // 0
+Num.between(5, 1, 10)           // true
+Num.between(15, 1, 10)          // false
+```
+
+### Available methods
+
+`abbreviate()`, `between()`, `clamp()`, `currency()`, `fileSize()`, `format()`, `percentage()`.
 
 ## Pipeline
 
@@ -228,6 +198,85 @@ const result = await send(user)
   .through([validate, fetchProfile])
   .thenReturn()
 ```
+
+## registerGlobalHelpers
+
+`registerGlobalHelpers()` makes any utility available on `globalThis` so it's accessible anywhere without importing. Pass only what you need — anything you don't import is treeshaken out of the bundle:
+
+```typescript
+import { registerGlobalHelpers, Str, Num, Arr } from "@artisansdk/architect"
+
+registerGlobalHelpers({ Str, Num, Arr })
+
+// Anywhere in the app, no import needed:
+Str.slug("Hello World")
+Num.currency(9.99, "USD")
+```
+
+The object shorthand `{ Str, Num, Arr }` uses the variable names as the keys on `globalThis`. You can rename a helper if needed:
+
+```typescript
+registerGlobalHelpers({ S: Str }) // → globalThis.S
+```
+
+## Signal
+
+A minimal observable value box — get/set/subscribe, no dependency tracking or batching:
+
+```typescript
+import { Signal } from "@artisansdk/architect"
+
+const count = new Signal(0)
+
+const unsubscribe = count.subscribe((value) => console.log("count is now", value))
+
+count.set(1)              // logs "count is now 1"
+count.update((n) => n + 1) // logs "count is now 2"
+count.get()                // 2
+
+unsubscribe()
+```
+
+`set()` is a no-op if the new value is `Object.is`-equal to the current one — listeners aren't notified. In React, [`useSignal(signal)`](./adapters.md#hooks) subscribes a component to a `Signal` and re-renders on change.
+
+## Str
+
+String manipulation utilities, matching Laravel's `Str` helper. All methods are static functions on the `Str` object.
+
+```typescript doctest
+import { Str } from "@artisansdk/architect"
+
+Str.slug("Hello World")              // "hello-world"
+Str.camel("user_created")            // "userCreated"
+Str.snake("UserCreated")             // "user_created"
+Str.kebab("UserCreated")             // "user-created"
+Str.studly("user_created")           // "UserCreated"
+Str.title("hello world")             // "Hello World"
+Str.headline("user_created_event")   // "User Created Event"
+Str.limit("Long sentence here", 10)  // "Long sente..."
+Str.lower("HELLO")                   // "hello"
+Str.upper("hello")                   // "HELLO"
+Str.random(16)                       // random alphanumeric string
+Str.contains("hello world", "world") // true
+Str.startsWith("hello", "hel")       // true
+Str.endsWith("hello", "llo")         // true
+Str.replace("world", "there", "hello world") // "hello there"
+Str.slug("Héllo Wörld")              // "hello-world"
+Str.trim("  hello  ")               // "hello"
+Str.squish("hello   world")          // "hello world"
+Str.after("user@example.com", "@")   // "example.com"
+Str.before("user@example.com", "@")  // "user"
+Str.between("<div>", "<", ">")       // "div"
+Str.wordCount("hello world")         // 2
+Str.isUrl("https://example.com")     // true
+Str.isJson('{"key":"value"}')        // true
+Str.toBase64("hello")                // "aGVsbG8="
+Str.fromBase64("aGVsbG8=")           // "hello"
+```
+
+### Available methods
+
+`after()`, `afterLast()`, `apa()`, `before()`, `beforeLast()`, `between()`, `betweenFirst()`, `camel()`, `charAt()`, `chopEnd()`, `chopStart()`, `contains()`, `containsAll()`, `deduplicate()`, `doesntContain()`, `doesntEndWith()`, `doesntStartWith()`, `endsWith()`, `excerpt()`, `finish()`, `fromBase64()`, `headline()`, `initials()`, `is()`, `isAscii()`, `isJson()`, `isMatch()`, `isUlid()`, `isUrl()`, `isUuid()`, `kebab()`, `lcfirst()`, `length()`, `limit()`, `lower()`, `ltrim()`, `mask()`, `match()`, `matchAll()`, `padBoth()`, `padLeft()`, `padRight()`, `position()`, `random()`, `remove()`, `repeat()`, `replace()`, `replaceArray()`, `replaceEnd()`, `replaceFirst()`, `replaceLast()`, `replaceMatches()`, `replaceStart()`, `reverse()`, `rtrim()`, `slug()`, `snake()`, `squish()`, `start()`, `startsWith()`, `studly()`, `substr()`, `substrCount()`, `substrReplace()`, `swap()`, `take()`, `title()`, `toBase64()`, `trim()`, `ucfirst()`, `ucsplit()`, `ucwords()`, `unwrap()`, `upper()`, `wordCount()`, `wordWrap()`, `words()`, `wrap()`.
 
 ## Timebox
 

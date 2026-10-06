@@ -14,3 +14,6 @@ git-repository-icon = "fab-github"
 
 [output.html.print]
 enable = false
+
+[output.html.redirect]
+"installation.html" = "quick-start.html#installation"

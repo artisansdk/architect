@@ -59,6 +59,19 @@ describe("Fluent", () => {
         expect((f.db as Record<string, unknown>).host).toBe(f.get("db.host"))
     })
 
+    test("serializes chained attributes as JSON and strings", () => {
+        const f = new Fluent().set("user.name", "Alice").set("active", true)
+        const json = '{"user":{"name":"Alice"},"active":true}'
+
+        expect(f.toJson()).toBe(json)
+        expect(f.json()).toBe(json)
+        expect(f.toString()).toBe(json)
+        expect(String(f)).toBe(json)
+        expect(JSON.stringify({ profile: f })).toBe(`{"profile":${json}}`)
+        expect(f.toJson(true)).toBe(JSON.stringify(f.toArray(), null, 2))
+        expect(f.json(true)).toBe(f.toJson(true))
+    })
+
     test("property access returns undefined for missing keys", () => {
         const f = new Fluent({ name: "ioc" })
         expect((f as unknown as Record<string, unknown>).missing).toBeUndefined()
