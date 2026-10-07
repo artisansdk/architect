@@ -4,22 +4,34 @@ import type { Contract } from "./contract"
 import ConsoleLogger from "./drivers/console"
 import NullLogger from "./drivers/null"
 import StackLogger from "./drivers/stack"
+import LogError from "./error"
 
 export default class LogManager extends Manager<Contract, Contract> implements Contract {
     debug(message: string, context?: Record<string, unknown>): void {
-        this.resolve(this.active).debug(message, context)
+        this.write("debug", message, context)
     }
 
     info(message: string, context?: Record<string, unknown>): void {
-        this.resolve(this.active).info(message, context)
+        this.write("info", message, context)
     }
 
     warn(message: string, context?: Record<string, unknown>): void {
-        this.resolve(this.active).warn(message, context)
+        this.write("warn", message, context)
     }
 
     error(message: string, context?: Record<string, unknown>): void {
-        this.resolve(this.active).error(message, context)
+        this.write("error", message, context)
+    }
+
+    /**
+     * Write through the active driver, wrapping any driver failure in a `LogError`.
+     */
+    protected write(level: keyof Contract, message: string, context?: Record<string, unknown>): void {
+        try {
+            this.resolve(this.active)[level](message, context)
+        } catch (e) {
+            throw new LogError(e)
+        }
     }
 
     /**

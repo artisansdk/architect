@@ -84,7 +84,7 @@ Conditions do not affect the schedule. If a condition fails at a scheduled tick,
 
 ## Named tasks
 
-Register a task by name to cancel it later without holding a reference. If a name is already in use, the existing task is removed and a warning is logged before the new one is registered.
+Register a task by name to cancel it later without holding a reference. If a name is already in use, the existing task is replaced by the new one.
 
 ```typescript
 scheduler.task("review-prompt", () => showModal()).in(1, "minutes")
@@ -131,9 +131,9 @@ scheduler.cancelTag("popups")
 
 ## Error handling
 
-If a task handler throws, the error is caught and logged as a warning through the [log](./log.md) service. The task is still removed if it was one-shot, and the rest of the tasks in the tick are unaffected.
+If a task handler throws and nothing handles it, the error goes to the app's `ErrorHandler` (see [errors](./errors.md)), which reports it to the log and rethrows it unless the error implements `report()`/`render()`. The scheduler itself never logs. A `Scheduler` constructed without an `ErrorHandler` rethrows instead. In every case the rest of the tasks in the tick still run, the error is thrown once the tick finishes, and a one-shot task is still removed.
 
-Chain `.catch()` to handle the error yourself. Like a promise chain, handlers run in order — the first handles the error, one that rethrows passes its error to the next, and anything left unhandled falls back to the log:
+Chain `.catch()` to handle the error yourself. Like a promise chain, handlers run in order — the first handles the error, one that rethrows passes its error to the next, and anything left unhandled falls back to the `ErrorHandler`:
 
 ```typescript
 scheduler

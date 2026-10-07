@@ -368,6 +368,7 @@ describe("Application", () => {
         const running = Application.configure("./").run()
 
         expect(running.container.bound("log")).toBe(true)
+        expect(running.container.bound("errors")).toBe(true)
     })
 
     test("use treats a non-provider class as config", () => {

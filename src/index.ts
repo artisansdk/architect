@@ -15,8 +15,11 @@ export type {
     Factory as ContainerFactory,
     Identifier as ContainerIdentifier,
 } from "./container/contract"
+export type { Renderable } from "./errors/concerns/renderable"
+export type { Reportable } from "./errors/concerns/reportable"
 export type { Source as ErrorSource } from "./errors/error"
 export { default as ArchitectError } from "./errors/error"
+export { default as ErrorHandler, ErrorHandlerProvider } from "./errors/handler"
 export { ErrorsProvider } from "./errors/provider"
 export type {
     EventIdentifier,
@@ -37,6 +40,7 @@ export { HttpProvider } from "./http/provider"
 export { default as Response } from "./http/response"
 export type { RecordedRequest } from "./http/types"
 export type { Contract as LogContract } from "./log/contract"
+export { default as LogError } from "./log/error"
 export { default as LogManager } from "./log/manager"
 export { LogProvider } from "./log/provider"
 export type { default as Contract, RendererContext, RootComponent } from "./renderers/contract"
