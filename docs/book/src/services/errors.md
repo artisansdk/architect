@@ -41,7 +41,7 @@ Event.listen("error", (error) => { /* ... */ })
 
 ```typescript
 class ArchitectError extends Error {
-  readonly source: "window" | "promise" | "react"
+  readonly source: "window" | "promise" | "react" | "hashing" | "encryption"
   readonly cause: unknown        // the original thrown value (inherited from Error)
   readonly errorInfo?: unknown   // React's componentStack info, only present for source "react"
 }

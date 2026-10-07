@@ -15,6 +15,8 @@ export type {
     Factory as ContainerFactory,
     Identifier as ContainerIdentifier,
 } from "./container/contract"
+export type { Cipher, EncrypterContract } from "./encryption"
+export { Encrypter, EncryptionProvider } from "./encryption"
 export type { Source as ErrorSource } from "./errors/error"
 export { default as ArchitectError } from "./errors/error"
 export { ErrorsProvider } from "./errors/provider"
@@ -31,6 +33,8 @@ export { Dispatchable } from "./events/concerns/dispatchable"
 export { EventsProvider } from "./events/provider"
 export type { ApplicationConfigureOptions, Usable } from "./foundation/application"
 export { Application } from "./foundation/application"
+export type { HashInfo, HashRuntime } from "./hashing"
+export { AbstractHasher, Argon2IdHasher, ArgonHasher, BcryptHasher, HashManager, HashProvider } from "./hashing"
 export { default as HttpFactory } from "./http/factory"
 export { default as PendingRequest } from "./http/pending-request"
 export { HttpProvider } from "./http/provider"
@@ -66,7 +70,9 @@ export type { Callback as TimeboxCallback, Window as TimeboxWindow } from "./sup
 export { Timebox } from "./support/timebox"
 
 import { CacheProvider } from "./cache/provider"
+import { EncryptionProvider } from "./encryption/provider"
 import { ErrorsProvider } from "./errors/provider"
+import { HashProvider } from "./hashing/provider"
 import { HttpProvider } from "./http/provider"
 import { LogProvider } from "./log/provider"
 import { StoreProvider } from "./store/provider"
@@ -76,6 +82,8 @@ export const defaultProviders: ServiceProvider[] = [
     new StoreProvider(),
     new CacheProvider(),
     new LogProvider(),
+    new HashProvider(),
+    new EncryptionProvider(),
     new HttpProvider(),
     new ErrorsProvider(),
 ]

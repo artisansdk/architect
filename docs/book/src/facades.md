@@ -13,9 +13,11 @@ A **Facade** is a static proxy that forwards calls to a service resolved from th
 | `Event` | `Bus` | 
 | `Log` | `LogManager` |
 | `Http` | `HttpFactory` |
+| `Hash` | `HashManager` |
+| `Crypt` | `Encrypter` |
 
 ```typescript
-import { App, Config, Cache, Store, Event, Log, Http } from "@artisansdk/architect/support/facades"
+import { App, Config, Cache, Store, Event, Log, Http, Hash, Crypt } from "@artisansdk/architect/support/facades"
 ```
 
 ## Creating a custom facade
