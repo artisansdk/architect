@@ -138,6 +138,11 @@
             "bun": "./src/support/facades/scheduler.ts",
             "default": "./dist/support/facades/scheduler.js"
         },
+        "./facades/feature": {
+            "types": "./dist/support/facades/feature.d.ts",
+            "bun": "./src/support/facades/feature.ts",
+            "default": "./dist/support/facades/feature.js"
+        },
         "./http/factory": {
             "types": "./dist/http/factory.d.ts",
             "bun": "./src/http/factory.ts",
@@ -187,6 +192,16 @@
             "types": "./dist/scheduler/provider.d.ts",
             "bun": "./src/scheduler/provider.ts",
             "default": "./dist/scheduler/provider.js"
+        },
+        "./feature/features": {
+            "types": "./dist/feature/features.d.ts",
+            "bun": "./src/feature/features.ts",
+            "default": "./dist/feature/features.js"
+        },
+        "./feature/provider": {
+            "types": "./dist/feature/provider.d.ts",
+            "bun": "./src/feature/provider.ts",
+            "default": "./dist/feature/provider.js"
         },
         "./log/contract": {
             "types": "./dist/log/contract.d.ts",

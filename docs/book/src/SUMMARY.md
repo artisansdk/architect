@@ -15,6 +15,7 @@
   - [Logging](./services/log.md)
   - [Scheduler](./services/scheduler.md)
   - [Http](./services/http.md)
+  - [Features](./services/feature.md)
 - [Facades](./facades.md)
 - [Framework Adapters](./adapters.md)
 - [Utilities](./utilities.md)

@@ -51,6 +51,10 @@ The only shipped container implementation. Resolves constructor dependencies via
 A typed key-value store with dot-notation path access (e.g. `config.get<string>("app.name")`). Backed by a plain object; no reactivity.
 _Avoid_: config store, config object, Repository (ambiguous)
 
+**Feature**:
+Feature resolution and flagging. `Features.define(name, resolver)` registers a static value or a `(scope) => value` resolver; the **first resolved value is persisted per scope** (store key `feature:<name>:<scope>`, default scope `"global"`), so random A/B assignments stay sticky. Unknown features are `false` and never stored; any value other than `false` is active. The API is async because it sits on the **StoreManager**; `feature.store` config picks which store driver holds flags. `FeatureProvider` is opt-in (not in `defaultProviders`), bound as `"feature"` and exposed through the `Feature` facade.
+_Avoid_: toggle, switch, experiment (an experiment is just a feature whose resolver picks a variant)
+
 **StoreManager**:
 An abstraction over persistent storage backends — localStorage, IndexedDB, and extensible to native file systems (Tauri, React Native) via `extend()`. The active driver is swapped at runtime with `.use()`. Unlike **CacheManager**, it reads a single flat `store.driver` config key — no per-store config map.
 _Avoid_: StorageManager (the exported class is `StoreManager`)
