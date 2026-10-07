@@ -50,6 +50,22 @@ export class Fluent<T extends Record<string, unknown> = Record<string, unknown>>
     toArray(): T {
         return { ...this.attributes } as T
     }
+
+    toJSON(): T {
+        return this.toArray()
+    }
+
+    toJson(pretty?: boolean): string {
+        return JSON.stringify(this.toJSON(), null, pretty ? 2 : undefined)
+    }
+
+    json(pretty?: boolean): string {
+        return this.toJson(pretty)
+    }
+
+    toString(): string {
+        return this.toJson()
+    }
 }
 
 // The declaration merge below gives callers typed access to `T`'s keys directly on a

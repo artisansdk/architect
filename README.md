@@ -49,10 +49,10 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 
 Full guides and API reference: **[artisansdk.github.io/architect](https://artisansdk.github.io/architect/)**
 
-- [Quick Start](https://artisansdk.github.io/architect/quick-start.html)
+- [Installation & Quick Start](https://artisansdk.github.io/architect/quick-start.html)
 - [Core Concepts](https://artisansdk.github.io/architect/concepts/application.html) — Application lifecycle, Service Providers, Container
 - [Built-in Services](https://artisansdk.github.io/architect/services/config.html) — Config, Cache, Store, Events, Logging, Scheduler
-- [Framework Adapters](https://artisansdk.github.io/architect/adapters.html) — React, Vue, Solid, Svelte
+- [Frameworks](https://artisansdk.github.io/architect/adapters.html) — React, Vue, Solid, Svelte
 - [Facades](https://artisansdk.github.io/architect/facades.html) · [Utilities](https://artisansdk.github.io/architect/utilities.html)
 
 ## Examples

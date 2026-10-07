@@ -99,6 +99,19 @@ container.instance("api.url", "https://api.example.com")   // string key
 container.instance(Symbol("db"), connection)               // symbol key
 ```
 
+## Aliases
+
+`container.alias(alias, target)` gives a binding another identifier. The alias comes first; the target is the identifier to resolve. Both can be a class, string, or symbol.
+
+```typescript
+container.singleton(UserRepository, UserRepository)
+container.alias("users", UserRepository)
+
+container.make("users") === container.make(UserRepository) // true
+```
+
+Aliases resolve the target each time, preserving its scope: a singleton returns the same instance, while a transient creates a new instance. You can declare an alias before binding its target, as long as the target is bound before resolution. `alias()` returns the container for chaining.
+
 ## Auto-wiring
 
 When you bind a class, the container reads its constructor parameter types from metadata and resolves each one automatically:

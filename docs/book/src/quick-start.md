@@ -1,4 +1,18 @@
-# Quick Start
+# Installation & Quick Start
+
+## Installation
+
+Add Architect with your project's package manager:
+
+```sh
+npm install @artisansdk/architect
+# or
+pnpm add @artisansdk/architect
+# or
+bun add @artisansdk/architect
+```
+
+## Quick Start
 
 This example wires up two services and mounts a React app. The same pattern applies to any framework.
 
