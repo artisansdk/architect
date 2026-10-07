@@ -1,3 +1,4 @@
+import type ErrorHandler from "../errors/handler"
 import { compareOp } from "../support/compare"
 import type { Contract } from "./contract"
 
@@ -9,6 +10,8 @@ const toMs: Record<TimeUnit, number> = {
     minutes: 60_000,
     hours: 3_600_000,
 }
+
+type Handler = (error: unknown, task: Task) => unknown
 
 type Condition = {
     fn: () => unknown
@@ -23,19 +26,59 @@ type Condition = {
  */
 export class Task {
     protected handler: () => void
+    protected handlers: Handler[] = []
     protected conditions: Condition[] = []
     protected startAt: number = Date.now()
     protected interval: number = 0
     protected lastTick: number | null = null
-    protected isOnce: boolean = true
+    isOnce: boolean = true
     taskName: string | null = null
     taskTag: string | null = null
 
     protected isNameTaken: (n: string) => boolean
 
-    constructor(handler: () => void, isNameTaken: (n: string) => boolean = () => false) {
+    constructor(
+        handler: () => void,
+        isNameTaken: (n: string) => boolean = () => false,
+        protected errors?: ErrorHandler,
+    ) {
         this.handler = handler
         this.isNameTaken = isNameTaken
+    }
+
+    /**
+     * Handle an error thrown by the handler. Like a promise chain, handlers run in order:
+     * the first one handles the error, and one that rethrows passes its error to the next.
+     * An error nothing handles goes to the `ErrorHandler`, or is rethrown without one.
+     */
+    catch(handler: Handler): this {
+        return this.tap(handler)
+    }
+
+    /**
+     * Record an error handler to apply when the handler throws.
+     */
+    protected tap(handler: Handler): this {
+        this.handlers.push(handler)
+        return this
+    }
+
+    /**
+     * Replay the queued error handlers onto the thrown error, falling back to the `ErrorHandler`.
+     */
+    protected settle(error: unknown): void {
+        for (const handler of this.handlers) {
+            try {
+                handler(error, this)
+                return
+            } catch (e) {
+                error = e
+            }
+        }
+
+        if (!this.errors) throw error
+
+        this.errors.handle(error)
     }
 
     /** Explicitly mark this task as one-shot (the default). */
@@ -118,8 +161,8 @@ export class Task {
 
     /**
      * Called by `Scheduler.run()` on each tick. Returns `true` when the task should be
-     * removed (i.e. it is a one-shot task and its handler ran). Handler errors are caught
-     * and warned so a single bad task never aborts the rest of the tick.
+     * removed (i.e. it is a one-shot task and its handler ran). Handler errors are passed
+     * to `.catch()` and then the `ErrorHandler`; whatever escapes both is thrown.
      */
     execute(): boolean {
         const now = Date.now()
@@ -138,7 +181,7 @@ export class Task {
         try {
             this.handler()
         } catch (e) {
-            console.warn(`Scheduler: task "${this.taskName ?? "(anonymous)"}" threw —`, e)
+            this.settle(e)
         }
 
         return this.isOnce
@@ -150,20 +193,22 @@ export class Task {
  * 1-second `setInterval` that drives `run()` and clears it on application shutdown.
  */
 export class Scheduler implements Contract {
+    constructor(protected errors?: ErrorHandler) {}
+
     protected tasks: Set<Task> = new Set()
     protected named: Map<string, Task> = new Map()
 
     /** Alias for the anonymous `task(handler)` form. Defaults to one-shot. */
     do(handler: () => void): Task {
-        const task = new Task(handler, (n) => this.named.has(n))
+        const task = new Task(handler, (n) => this.named.has(n), this.errors)
         this.tasks.add(task)
         return task
     }
 
     /**
      * Register an anonymous or named task. If a task with the same name already exists it is
-     * removed and a warning is logged before the new task is registered. Throws if the
-     * name is already in use as a tag — names and tags share one namespace.
+     * replaced by the new task. Throws if the name is already in use as a tag — names and
+     * tags share one namespace.
      */
     task(handler: () => void): Task
     task(name: string, handler: () => void): Task
@@ -180,7 +225,6 @@ export class Scheduler implements Contract {
         }
 
         if (this.named.has(name)) {
-            console.warn(`Scheduler: task "${name}" already registered — overwriting`)
             const existing = this.named.get(name)
             if (existing) this.remove(existing)
         }
@@ -208,14 +252,26 @@ export class Scheduler implements Contract {
         }
     }
 
-    /** Execute all registered tasks for this tick; auto-removes completed one-shot tasks. */
+    /**
+     * Execute all registered tasks for this tick; auto-removes completed one-shot tasks.
+     * A task error that escapes its handlers is rethrown only after every task has run.
+     */
     run(): void {
         const done: Task[] = []
+        const errors: unknown[] = []
         for (const t of this.tasks) {
-            if (t.execute()) done.push(t)
+            try {
+                if (t.execute()) done.push(t)
+            } catch (e) {
+                errors.push(e)
+                if (t.isOnce) done.push(t)
+            }
         }
         for (const t of done) {
             this.remove(t)
+        }
+        if (errors.length > 0) {
+            throw errors.length === 1 ? errors[0] : new AggregateError(errors, "Scheduler: multiple tasks threw")
         }
     }
 }

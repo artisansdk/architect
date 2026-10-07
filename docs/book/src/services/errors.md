@@ -76,3 +76,21 @@ Application.configure()
 ```
 
 See [Events](./events.md) for the `Bus` API itself.
+
+## ErrorHandler
+
+Every app has an `ErrorHandler`, registered as part of the core alongside config and the [log](./log.md) and bound as `"errors"` and `ErrorHandler`. Framework code, such as the [scheduler](./scheduler.md), sends it any error that nothing closer handled.
+
+- `report(error)` calls `error.report()` if the error has one (`Reportable`). Otherwise it logs the error with `log.error`.
+- `render(error)` calls `error.render()` and returns its result if the error has one (`Renderable`). Otherwise it rethrows the error.
+- `handle(error)` reports the error, then renders it.
+
+```typescript
+class QuotaExceeded extends Error implements Renderable {
+  render() {
+    toast("You're out of credits")
+  }
+}
+```
+
+When a log driver throws, `LogManager` throws a `LogError` in its place. `LogError` has a no-op `render()` and no `report()`. If `report()` fails with a `LogError`, `handle()` renders that `LogError` (which does nothing) and then renders the original error as usual, so a broken logger can't crash the app or hide the original error.

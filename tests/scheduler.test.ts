@@ -1,12 +1,21 @@
-import { describe, expect, mock, test } from "bun:test"
+import { beforeEach, describe, expect, mock, test } from "bun:test"
 import BuiltinContainer from "@/container/adapters/builtin"
+import type ErrorHandler from "@/errors/handler"
 import { SchedulerProvider } from "@/scheduler/provider"
 import { Scheduler, Task } from "@/scheduler/scheduler"
 
 const past = () => Date.now() - 1
 
+let handle: ReturnType<typeof mock>
+let errors: ErrorHandler
+
+beforeEach(() => {
+    handle = mock()
+    errors = { handle } as unknown as ErrorHandler
+})
+
 function makeTask(handler: () => void): Task {
-    const t = new Task(handler)
+    const t = new Task(handler, undefined, errors)
     ;(t as any).startAt = past()
     return t
 }
@@ -84,12 +93,48 @@ describe("Task.execute()", () => {
         expect(fn).not.toHaveBeenCalled()
     })
 
-    test("swallows handler errors and does not abort", () => {
-        const fn = mock(() => {
+    test("hands unhandled errors to the ErrorHandler", () => {
+        const error = new Error("boom")
+        const t = makeTask(() => {
+            throw error
+        })
+        expect(() => t.execute()).not.toThrow()
+        expect(handle).toHaveBeenCalledWith(error)
+    })
+
+    test("rethrows unhandled errors without an ErrorHandler", () => {
+        const t = new Task(() => {
             throw new Error("boom")
         })
-        const t = makeTask(fn)
-        expect(() => t.execute()).not.toThrow()
+        ;(t as any).startAt = past()
+        expect(() => t.execute()).toThrow("boom")
+    })
+
+    test("catch() handles the error instead of the ErrorHandler", () => {
+        const error = new Error("boom")
+        const onError = mock()
+        const t = makeTask(() => {
+            throw error
+        }).catch(onError)
+        t.execute()
+        expect(onError).toHaveBeenCalledWith(error, t)
+        expect(handle).not.toHaveBeenCalled()
+    })
+
+    test("catch() handlers chain: a rethrow passes to the next, unhandled falls back to the ErrorHandler", () => {
+        const second = mock(() => {
+            throw new Error("again")
+        })
+        const t = makeTask(() => {
+            throw new Error("boom")
+        })
+            .catch((e) => {
+                throw e
+            })
+            .catch(second)
+        t.execute()
+        expect(second).toHaveBeenCalledTimes(1)
+        expect(handle).toHaveBeenCalledWith(new Error("again"))
     })
 
     test("still returns isOnce after handler throws", () => {
@@ -205,12 +250,12 @@ describe("Scheduler", () => {
         )
     })
 
-    test("task() warns and overwrites on duplicate name", () => {
+    test("task() overwrites on duplicate name", () => {
         const s = new Scheduler()
         const fn1 = mock()
         const fn2 = mock()
         s.task("donate", fn1)
-        s.task("donate", fn2) // should warn + overwrite
+        s.task("donate", fn2) // should overwrite
         const t = (s as any).named.get("donate") as Task
         ;(t as any).startAt = past()
         s.run()
@@ -259,6 +304,45 @@ describe("Scheduler", () => {
         const s = new Scheduler()
         s.do(mock()).tag("popups")
         expect(() => s.task("popups", mock())).toThrow('Scheduler: task "popups" conflicts with an existing tag')
+    })
+})
+
+describe("Scheduler without an ErrorHandler", () => {
+    test("runs every task, removes failed one-shots, then rethrows", () => {
+        const s = new Scheduler()
+        const after = mock()
+        const failing = s.do(() => {
+            throw new Error("boom")
+        })
+        const ok = s.do(after)
+        ;(failing as any).startAt = past()
+        ;(ok as any).startAt = past()
+        expect(() => s.run()).toThrow("boom")
+        expect(after).toHaveBeenCalledTimes(1)
+        expect((s as any).tasks.size).toBe(0)
+    })
+
+    test("several failures throw an AggregateError", () => {
+        const s = new Scheduler()
+        for (const msg of ["a", "b"]) {
+            ;(
+                s.do(() => {
+                    throw new Error(msg)
+                }) as any
+            ).startAt = past()
+        }
+        expect(() => s.run()).toThrow(AggregateError)
+    })
+
+    test("passes its ErrorHandler to tasks", () => {
+        const s = new Scheduler(errors)
+        ;(
+            s.do(() => {
+                throw new Error("boom")
+            }) as any
+        ).startAt = past()
+        expect(() => s.run()).not.toThrow()
+        expect(handle).toHaveBeenCalledTimes(1)
     })
 })
 
