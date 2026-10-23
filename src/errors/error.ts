@@ -1,4 +1,4 @@
-export type Source = "window" | "promise" | "react"
+export type Source = "window" | "promise" | "react" | "hashing" | "encryption"
 
 export default class ArchitectError extends Error {
     // Bus event label — lets listeners subscribe via the class or the "error" string
