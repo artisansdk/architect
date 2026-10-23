@@ -116,20 +116,20 @@ describe("HashManager", () => {
         })
     })
 
-    test("respects the configured default driver", async () => {
-        const hash = await manager({ driver: "bcrypt" }).make("secret")
+    test("respects the configured default algorithm", async () => {
+        const hash = await manager({ algo: "bcrypt" }).make("secret")
         expect(hash.startsWith("$2")).toBe(true)
     })
 
     test("driver() selects a specific hasher", async () => {
         const hashes = manager()
-        expect(hashes.driver("bcrypt")).toBeInstanceOf(BcryptHasher)
-        expect(hashes.info(await hashes.driver("bcrypt").make("secret")).algorithm).toBe("bcrypt")
+        expect(hashes.algo("bcrypt")).toBeInstanceOf(BcryptHasher)
+        expect(hashes.info(await hashes.algo("bcrypt").make("secret")).algorithm).toBe("bcrypt")
     })
 
     test("legacy bcrypt hashes still check and are flagged for rehash", async () => {
         const hashes = manager()
-        const legacy = await hashes.driver("bcrypt").make("secret")
+        const legacy = await hashes.algo("bcrypt").make("secret")
 
         expect(await hashes.check("secret", legacy)).toBe(true)
         expect(hashes.needsRehash(legacy)).toBe(true)
@@ -137,11 +137,11 @@ describe("HashManager", () => {
 
     test("extend() registers a custom driver", async () => {
         const hashes = manager().extend("fast", () => new BcryptHasher({ rounds: 4 }))
-        expect(await hashes.driver("fast").check("x", await hashes.driver("fast").make("x"))).toBe(true)
+        expect(await hashes.algo("fast").check("x", await hashes.algo("fast").make("x"))).toBe(true)
     })
 
-    test("an unknown configured default driver throws instead of falling back", () => {
-        expect(() => manager({ driver: "nope" }).make("x")).toThrow("Hash driver [nope] is not defined.")
+    test("an unknown configured default algorithm throws instead of falling back", () => {
+        expect(() => manager({ algo: "nope" }).make("x")).toThrow("Hash algorithm [nope] is not defined.")
     })
 
     test("extend() overrides a built-in driver", () => {
@@ -149,12 +149,64 @@ describe("HashManager", () => {
         expect(
             manager()
                 .extend("bcrypt", () => custom)
-                .driver("bcrypt"),
+                .algo("bcrypt"),
         ).toBe(custom)
     })
 
     test("unknown drivers throw", () => {
-        expect(() => manager().driver("nope")).toThrow("Hash driver [nope] is not defined.")
+        expect(() => manager().algo("nope")).toThrow("Hash algorithm [nope] is not defined.")
+    })
+
+    const recorder = (seen: string[]): Runtime => ({
+        hash: async (_, options) => {
+            seen.push(options.algorithm)
+            return "custom-hash"
+        },
+        verify: async () => true,
+    })
+
+    test("use() runs every algorithm on one registered runtime", async () => {
+        const seen: string[] = []
+        const hashes = manager().use("custom", () => recorder(seen))
+
+        await hashes.make("x")
+        await hashes.algo("argon").make("x")
+        await hashes.algo("bcrypt").make("x")
+
+        expect(seen).toEqual(["argon2id", "argon2i", "bcrypt"])
+    })
+
+    test("use() rebuilds hashers already created on the previous runtime", async () => {
+        const seen: string[] = []
+        const hashes = manager()
+        await hashes.make("x")
+
+        await hashes.use("custom", () => recorder(seen)).make("x")
+        expect(seen).toEqual(["argon2id"])
+    })
+
+    test("hashing.runtime selects a runtime registered with use()", async () => {
+        const seen: string[] = []
+        const hashes = manager({ runtime: "custom" })
+        hashes.use("custom", () => recorder(seen))
+
+        await hashes.make("x")
+        expect(seen).toEqual(["argon2id"])
+    })
+
+    test("extend() hands custom algorithms the active runtime", async () => {
+        const seen: string[] = []
+        const hashes = manager()
+            .use("custom", () => recorder(seen))
+            .extend("cheap", (_, runtime) => new BcryptHasher({ rounds: 4 }, runtime))
+
+        await hashes.algo("cheap").make("x")
+        expect(seen).toEqual(["bcrypt"])
+    })
+
+    test("unknown runtimes throw", () => {
+        expect(() => manager().use("nope")).toThrow("Hash runtime [nope] is not defined.")
+        expect(() => manager({ runtime: "nope" }).make("x")).toThrow("Hash runtime [nope] is not defined.")
     })
 
     test("delegates to an injected runtime", async () => {
@@ -164,18 +216,18 @@ describe("HashManager", () => {
 })
 
 describe("HashProvider", () => {
-    test("binds the manager under 'hash', its class, and the default driver under 'hash.driver'", () => {
-        const container = resolve({ hashing: { driver: "bcrypt" } })
+    test("binds the manager under 'hash', its class, and the default algorithm under 'hash.algo'", () => {
+        const container = resolve({ hashing: { algo: "bcrypt" } })
 
         expect(container.make("hash")).toBeInstanceOf(HashManager)
         expect(container.make(HashManager)).toBe(container.make<HashManager>("hash"))
-        expect(container.make("hash.driver")).toBeInstanceOf(BcryptHasher)
+        expect(container.make("hash.algo")).toBeInstanceOf(BcryptHasher)
     })
 
     test("is deferred until one of its bindings is resolved", () => {
         const provider = new HashProvider()
         expect(provider).toBeInstanceOf(DeferrableServiceProvider)
-        expect(provider.provides()).toEqual(["hash", "hash.driver", HashManager])
+        expect(provider.provides()).toEqual(["hash", "hash.algo", HashManager])
     })
 })
 

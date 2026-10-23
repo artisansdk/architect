@@ -65,7 +65,8 @@ To generate a key:
 import { Encrypter } from "@artisansdk/architect/encryption"
 
 const key = Encrypter.generateKey("aes-128-cbc")
-`base64:${btoa(String.fromCharCode(...key))}` // paste into APP_KEY
+
+process.env.APP_KEY = `base64:${btoa(String.fromCharCode(...key))}` // or save to APP_KEY in .env file
 ```
 
 To check whether a stored value is already encrypted, for example while migrating a column, use `Encrypter.appearsEncrypted(value)`. It only checks the payload's shape and doesn't decrypt it.

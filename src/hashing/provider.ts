@@ -8,18 +8,18 @@ import HashManager from "./manager"
  */
 export class HashProvider extends DeferrableServiceProvider {
     /**
-     * Binds the manager as `hash` (aliased to its class) and the default driver as `hash.driver`.
+     * Binds the manager as `hash` (aliased to its class) and the default algorithm as `hash.algo`.
      */
     register(container: Container): void {
         container.singleton("hash", (c) => new HashManager(c.make<ConfigRepository>("config")))
         container.alias(HashManager, "hash")
-        container.singleton("hash.driver", (c) => c.make<HashManager>("hash").driver())
+        container.singleton("hash.algo", (c) => c.make<HashManager>("hash").algo())
     }
 
     /**
      * Returns the bindings that trigger this provider to register.
      */
     provides(): Identifier[] {
-        return ["hash", "hash.driver", HashManager]
+        return ["hash", "hash.algo", HashManager]
     }
 }
