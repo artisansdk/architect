@@ -15,6 +15,8 @@
   - [Logging](./services/log.md)
   - [Scheduler](./services/scheduler.md)
   - [Http](./services/http.md)
+  - [Hashing](./services/hashing.md)
+  - [Encryption](./services/encryption.md)
 - [Facades](./facades.md)
 - [Utilities](./utilities.md)
 - [Advanced]()
