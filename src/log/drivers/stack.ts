@@ -1,4 +1,4 @@
-import type { Contract } from "../contract"
+import type { Contract, LogLevel } from "../contract"
 
 export default class StackLogger implements Contract {
     constructor(protected drivers: Contract[]) {}
@@ -11,6 +11,10 @@ export default class StackLogger implements Contract {
         this.dispatch("info", message, context)
     }
 
+    notice(message: string, context?: Record<string, unknown>): void {
+        this.dispatch("notice", message, context)
+    }
+
     warn(message: string, context?: Record<string, unknown>): void {
         this.dispatch("warn", message, context)
     }
@@ -19,10 +23,22 @@ export default class StackLogger implements Contract {
         this.dispatch("error", message, context)
     }
 
+    critical(message: string, context?: Record<string, unknown>): void {
+        this.dispatch("critical", message, context)
+    }
+
+    alert(message: string, context?: Record<string, unknown>): void {
+        this.dispatch("alert", message, context)
+    }
+
+    emergency(message: string, context?: Record<string, unknown>): void {
+        this.dispatch("emergency", message, context)
+    }
+
     /**
      * Forwards the log call to each driver in order, swallowing any individual driver errors.
      */
-    protected dispatch(level: keyof Contract, message: string, context?: Record<string, unknown>): void {
+    protected dispatch(level: LogLevel, message: string, context?: Record<string, unknown>): void {
         for (const driver of this.drivers) {
             try {
                 driver[level](message, context)

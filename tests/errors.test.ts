@@ -69,6 +69,26 @@ describe("ErrorsProvider", () => {
         expect(listeners.size).toBe(0)
     })
 
+    test("reports uncaught errors to the handler and survives a failing logger", () => {
+        const listeners = stubWindow()
+        const container = new BuiltinContainer()
+        const provider = new ErrorsProvider()
+        provider.register(container)
+
+        const reported: unknown[] = []
+        container.instance("errors", {
+            report: (error: unknown) => {
+                reported.push(error)
+                throw new Error("logger down")
+            },
+        })
+        provider.boot(container)
+
+        expect(() => listeners.get("unhandledrejection")?.({ reason: "nope" })).not.toThrow()
+        expect(reported).toHaveLength(1)
+        expect((reported[0] as ArchitectError).source).toBe("promise")
+    })
+
     test("ignores errors from third-party origins and censored cross-origin scripts", async () => {
         const listeners = stubWindow()
         const container = new BuiltinContainer()

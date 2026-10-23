@@ -19,17 +19,21 @@ import { Log } from "@artisansdk/architect/support/facades"
 
 Log.debug("Fetching user", { userId: 42 })
 Log.info("User loaded")
+Log.notice("User changed their email")
 Log.warn("Cache miss — falling back to API")
 Log.error("Request failed", { status: 500, url: "/api/users" })
+Log.critical("Payment provider unreachable")
+Log.alert("Checkout is down")
+Log.emergency("App cannot start")
 ```
 
-All four methods accept an optional structured context object as their second argument.
+The levels follow Monolog (RFC 5424), from least to most severe: `debug`, `info`, `notice`, `warn`, `error`, `critical`, `alert`, `emergency`. Monolog calls `warn` `warning`. Here it's `warn`, to match the native console. Every method accepts an optional structured context object as its second argument.
 
 ## Drivers
 
 | Driver | Behaviour |
 |--------|-----------|
-| `console` | Writes to the browser console using native `console.debug/info/warn/error`. Respects a minimum level threshold. |
+| `console` | Writes to the browser console using native `console.debug/info/warn/error`: `notice` goes to `console.info`, and `critical`, `alert` and `emergency` go to `console.error`. Respects a minimum level threshold. |
 | `null` | Discards all messages. Useful in tests. |
 | `stack` | Fans out each call to an ordered list of other drivers. Errors thrown by individual drivers are swallowed. |
 
@@ -41,7 +45,7 @@ Application.configure({
     logging: {
       default: "console",
       drivers: {
-        console: { level: "warn" }, // suppress debug and info in production
+        console: { level: "notice" }, // suppress debug and info in production
       },
     },
   },
@@ -50,14 +54,9 @@ Application.configure({
 
 ### Level threshold
 
-`ConsoleLogger` supports a minimum level. Messages below the threshold are silently dropped.
+`ConsoleLogger` supports a minimum level. Messages below the threshold are silently dropped, and the threshold level and everything more severe pass. The default is `"debug"`, which passes everything. For production, `"notice"` drops `debug` and `info` and keeps everything from `notice` up.
 
-| Level | What passes |
-|-------|-------------|
-| `"debug"` | All messages (default) |
-| `"info"` | `info`, `warn`, `error` |
-| `"warn"` | `warn`, `error` |
-| `"error"` | `error` only |
+The threshold is set per driver, as with Monolog handlers. A custom driver that needs one can take a level from its own config and check it against the exported `logLevels`.
 
 ## Fan-out with the stack driver
 
@@ -94,14 +93,18 @@ boot(container: Container) {
 }
 ```
 
-The log `Contract` requires four methods:
+The log `Contract` requires one method per level:
 
 ```typescript
 interface Contract {
   debug(message: string, context?: Record<string, unknown>): void
   info(message: string, context?: Record<string, unknown>): void
+  notice(message: string, context?: Record<string, unknown>): void
   warn(message: string, context?: Record<string, unknown>): void
   error(message: string, context?: Record<string, unknown>): void
+  critical(message: string, context?: Record<string, unknown>): void
+  alert(message: string, context?: Record<string, unknown>): void
+  emergency(message: string, context?: Record<string, unknown>): void
 }
 ```
 

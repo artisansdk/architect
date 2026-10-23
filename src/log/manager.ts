@@ -1,6 +1,6 @@
 import type ConfigRepository from "../config/repository"
 import Manager from "../support/manager"
-import type { Contract } from "./contract"
+import type { Contract, LogLevel } from "./contract"
 import ConsoleLogger from "./drivers/console"
 import NullLogger from "./drivers/null"
 import StackLogger from "./drivers/stack"
@@ -15,6 +15,10 @@ export default class LogManager extends Manager<Contract, Contract> implements C
         this.write("info", message, context)
     }
 
+    notice(message: string, context?: Record<string, unknown>): void {
+        this.write("notice", message, context)
+    }
+
     warn(message: string, context?: Record<string, unknown>): void {
         this.write("warn", message, context)
     }
@@ -23,10 +27,22 @@ export default class LogManager extends Manager<Contract, Contract> implements C
         this.write("error", message, context)
     }
 
+    critical(message: string, context?: Record<string, unknown>): void {
+        this.write("critical", message, context)
+    }
+
+    alert(message: string, context?: Record<string, unknown>): void {
+        this.write("alert", message, context)
+    }
+
+    emergency(message: string, context?: Record<string, unknown>): void {
+        this.write("emergency", message, context)
+    }
+
     /**
      * Write through the active driver, wrapping any driver failure in a `LogError`.
      */
-    protected write(level: keyof Contract, message: string, context?: Record<string, unknown>): void {
+    protected write(level: LogLevel, message: string, context?: Record<string, unknown>): void {
         try {
             this.resolve(this.active)[level](message, context)
         } catch (e) {
@@ -56,7 +72,7 @@ export default class LogManager extends Manager<Contract, Contract> implements C
         const manager = new LogManager({}, active, config)
 
         manager.extend("console", (cfg) => {
-            const level = cfg.get<"debug" | "info" | "warn" | "error">("logging.drivers.console.level", "debug")
+            const level = cfg.get<LogLevel>("logging.drivers.console.level", "debug")
             return new ConsoleLogger(level ?? "debug")
         })
 

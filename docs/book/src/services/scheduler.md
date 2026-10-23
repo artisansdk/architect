@@ -166,18 +166,18 @@ scheduler.cancel("popups")
 
 ## Error handling
 
-If a task handler throws and nothing handles it, the error goes to the app's `ErrorHandler` (see [errors](./errors.md)), which reports it to the log and rethrows it unless the error implements `report()`/`render()`. The scheduler itself never logs. A `Scheduler` constructed without an `ErrorHandler` rethrows instead. In every case the rest of the tasks in the tick still run, the error is thrown once the tick finishes, and a one-shot task is still removed.
+If a task handler throws and nothing handles it, the error goes to the app's `ErrorHandler` (see [errors](./errors.md)), which reports it to the log and rethrows it unless the error implements `report()`/`render()`. The scheduler itself never logs. `SchedulerProvider` always passes the app's handler in. A standalone `new Scheduler()` built without one rethrows instead. In every case the rest of the tasks in the tick still run, the error is thrown once the tick finishes, and a one-shot task is still removed.
 
 Chain `.catch()` to handle the error yourself. Like a promise chain, handlers run in order — the first handles the error, one that rethrows passes its error to the next, and anything left unhandled falls back to the `ErrorHandler`:
 
 ```typescript
 scheduler
-  .do(() => sync())
+  .task(() => sync())
   .every(30, "seconds")
   .catch((error, task) => report(error))
 ```
 
-Unlike [Timebox](../utilities.md#timebox), a task only has `.catch()` — there is no `.then()` or `.finally()`. A task's handler returns nothing to chain on, and a recurring task never settles; put follow-up work at the end of the handler itself.
+Unlike [Timebox](../utilities.md#timebox), a task only has `.catch()` — there is no `.then()` or `.finally()`. A task's handler returns nothing to chain on, and a recurring task never settles; put follow-up work at the end of the task itself.
 
 ## Using Scheduler directly
 

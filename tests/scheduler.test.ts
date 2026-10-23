@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test"
 import BuiltinContainer from "@/container/adapters/builtin"
-import type ErrorHandler from "@/errors/handler"
+import ErrorHandler from "@/errors/handler"
+import NullLogger from "@/log/drivers/null"
 import { SchedulerProvider } from "@/scheduler/provider"
 import { Scheduler, Task } from "@/scheduler/scheduler"
 
@@ -347,8 +348,15 @@ describe("Scheduler without an ErrorHandler", () => {
 })
 
 describe("SchedulerProvider", () => {
-    test("register binds Scheduler as singleton under 'scheduler' and Scheduler class", () => {
+    // Inside an Application the core ErrorsProvider always binds the handler
+    const containerWithErrors = () => {
         const container = new BuiltinContainer()
+        container.instance(ErrorHandler, new ErrorHandler(new NullLogger()))
+        return container
+    }
+
+    test("register binds Scheduler as singleton under 'scheduler' and Scheduler class", () => {
+        const container = containerWithErrors()
         const provider = new SchedulerProvider()
         provider.register(container)
         const s1 = container.make<Scheduler>("scheduler")
@@ -357,13 +365,19 @@ describe("SchedulerProvider", () => {
         expect(s1).toBe(s2)
     })
 
+    test("register hands the container's ErrorHandler to the Scheduler", () => {
+        const container = containerWithErrors()
+        new SchedulerProvider().register(container)
+        expect((container.make(Scheduler) as unknown as { errors: unknown }).errors).toBe(container.make(ErrorHandler))
+    })
+
     test("boot starts an interval and destroy clears it", () => {
         const originalClearInterval = globalThis.clearInterval
         const clearIntervalSpy = mock(originalClearInterval)
         globalThis.clearInterval = clearIntervalSpy
 
         try {
-            const container = new BuiltinContainer()
+            const container = containerWithErrors()
             const provider = new SchedulerProvider()
             provider.register(container)
             provider.boot(container)

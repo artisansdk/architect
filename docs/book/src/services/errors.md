@@ -1,14 +1,8 @@
 # Errors
 
-**ErrorsProvider** catches uncaught errors — window errors, unhandled promise rejections, and (in React) render errors — and dispatches them onto the **Events** bus as a normalized **ArchitectError**, so you can observe them from one place instead of wiring `window.addEventListener` yourself.
+**ErrorsProvider** catches uncaught errors — window errors, unhandled promise rejections, and (in React) render errors — and dispatches them onto the **Events** bus as a normalized **ArchitectError**, so you can observe them from one place instead of wiring `window.addEventListener` yourself. Each one is also reported to the [ErrorHandler](#errorhandler), so it's logged.
 
-It's included in `defaultProviders`:
-
-```typescript
-import { Application, defaultProviders } from "@artisansdk/architect"
-
-Application.configure().withProviders(defaultProviders).run()
-```
+It's part of the core alongside config and the [log](./log.md): every app registers it, so you don't add it to your providers.
 
 ## What it catches
 
@@ -61,34 +55,38 @@ import { ContextProvider } from "@artisansdk/architect/react"
 </ContextProvider>
 ```
 
-`errorFallback` renders in place of the crashed subtree. Dispatch to the **Events** bus is a separate side effect — it only fires if `"events"` is bound in the container, which `ErrorsProvider` (or `EventsProvider`) provides. Without either, the fallback still renders; the error just isn't dispatched anywhere.
+`errorFallback` renders in place of the crashed subtree, and the error is dispatched to the **Events** bus. It's also reported to the `ErrorHandler`.
 
-## Bringing your own events wiring
+## Events wiring
 
-If you're not using `defaultProviders`, `ErrorsProvider` still only needs `"events"` to exist — it registers a `Bus` itself, guarded so it won't replace one you've already bound:
-
-```typescript
-import { Application, ErrorsProvider } from "@artisansdk/architect"
-
-Application.configure()
-  .withProviders([new ErrorsProvider()])
-  .run()
-```
-
-See [Events](./events.md) for the `Bus` API itself.
+`ErrorsProvider` registers a `Bus` as `"events"` itself, guarded so it won't replace one you've already bound. See [Events](./events.md) for the `Bus` API itself.
 
 ## ErrorHandler
 
-Every app has an `ErrorHandler`, registered as part of the core alongside config and the [log](./log.md) and bound as `"errors"` and `ErrorHandler`. Framework code, such as the [scheduler](./scheduler.md), sends it any error that nothing closer handled.
+Every app has an `ErrorHandler`, registered by `ErrorsProvider` and bound as `"errors"` and `ErrorHandler`. Framework code, such as the [scheduler](./scheduler.md), sends it any error that nothing closer handled.
 
-- `report(error)` calls `error.report()` if the error has one (`Reportable`). Otherwise it logs the error with `log.error`.
-- `render(error)` calls `error.render()` and returns its result if the error has one (`Renderable`). Otherwise it rethrows the error.
+- `report(error)` calls `error.report()` if the error implements (`Reportable`). Otherwise it logs the error with `log.error`.
+- `render(error)` calls `error.render()` and returns its result if the error implements (`Renderable`). Otherwise it rethrows the error.
 - `handle(error)` reports the error, then renders it.
+- `level()` (`Level`) picks the level `report()` logs at, using any of the [log levels](./log.md) from `"debug"` to `"emergency"`. An unknown level falls back to `"error"`.
+- `ignore()` (`Ignorable`) returning `true` skips reporting entirely, including the error's own `report()`. It still renders.
+
+Uncaught errors reach the handler wrapped in an `ArchitectError`, so the handler reads these methods from the original error in `cause`.
 
 ```typescript
-class QuotaExceeded extends Error implements Renderable {
+class QuotaExceeded extends Error implements Renderable, Level {
+  level() {
+    return "warn" as const
+  }
+
   render() {
     toast("You're out of credits")
+  }
+}
+
+class RequestAborted extends Error implements Ignorable {
+  ignore() {
+    return true
   }
 }
 ```

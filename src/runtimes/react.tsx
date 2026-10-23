@@ -14,6 +14,7 @@ import { useProxy } from "valtio/utils"
 import { proxy } from "valtio/vanilla"
 import type { Container, Identifier } from "../container/contract"
 import ArchitectError from "../errors/error"
+import type ErrorHandler from "../errors/handler"
 import type { Bus } from "../events/bus"
 import type { Application } from "../foundation/application"
 import type { Signal } from "../support/signal"
@@ -40,8 +41,17 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     }
 
     componentDidCatch(error: unknown, errorInfo: ErrorInfo) {
+        const wrapped = new ArchitectError(error, "react", errorInfo)
+
         if (this.context?.bound("events")) {
-            void this.context.make<Bus>("events").dispatch(new ArchitectError(error, "react", errorInfo))
+            void this.context.make<Bus>("events").dispatch(wrapped)
+        }
+
+        // Report only: the fallback is the render. A failing logger is dropped so it can't crash the boundary.
+        if (this.context?.bound("errors")) {
+            try {
+                this.context.make<ErrorHandler>("errors").report(wrapped)
+            } catch {}
         }
     }
 

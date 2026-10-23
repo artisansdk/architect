@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test"
+import ArchitectError from "@/errors/error"
 import ErrorHandler from "@/errors/handler"
 import type { Contract as Logger } from "@/log/contract"
 import LogError from "@/log/error"
@@ -20,6 +21,32 @@ describe("ErrorHandler", () => {
         expect(new ErrorHandler(logger(error)).handle(e)).toBe("rendered")
         expect(e.report).toHaveBeenCalledTimes(1)
         expect(error).not.toHaveBeenCalled()
+    })
+
+    test("logs at the level from level(), falling back to error for an unknown level", () => {
+        const log = { warn: mock(), error: mock() } as unknown as Logger
+        const handler = new ErrorHandler(log)
+        handler.report(Object.assign(new Error("slow"), { level: () => "warn" }))
+        handler.report(Object.assign(new Error("odd"), { level: () => "notice" }))
+        expect(log.warn).toHaveBeenCalledTimes(1)
+        expect(log.error).toHaveBeenCalledTimes(1)
+    })
+
+    test("skips reporting when ignore() is true, but still renders", () => {
+        const error = mock()
+        const e = Object.assign(new Error("noise"), { ignore: () => true, report: mock(), render: () => "rendered" })
+        expect(new ErrorHandler(logger(error)).handle(e)).toBe("rendered")
+        expect(e.report).not.toHaveBeenCalled()
+        expect(error).not.toHaveBeenCalled()
+    })
+
+    test("reads concerns from the original error inside an ArchitectError", () => {
+        const log = { warn: mock(), error: mock() } as unknown as Logger
+        const handler = new ErrorHandler(log)
+        handler.report(new ArchitectError(Object.assign(new Error("noise"), { ignore: () => true }), "window"))
+        handler.report(new ArchitectError(Object.assign(new Error("slow"), { level: () => "warn" }), "promise"))
+        expect(log.error).not.toHaveBeenCalled()
+        expect(log.warn).toHaveBeenCalledTimes(1)
     })
 
     test("a failing logger is swallowed via LogError, the original error still renders", () => {

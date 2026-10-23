@@ -7,8 +7,8 @@ export class SchedulerProvider extends ServiceProvider {
     protected handle?: ReturnType<typeof setInterval>
 
     register(container: Container): void {
-        container.singleton("scheduler", (c) => new Scheduler(c.bound(ErrorHandler) ? c.make(ErrorHandler) : undefined))
-        container.singleton(Scheduler, (c) => c.make<Scheduler>("scheduler"))
+        container.singleton(Scheduler, (c) => new Scheduler(c.make(ErrorHandler)))
+        container.alias("scheduler", Scheduler)
     }
 
     boot(container: Container): void {

@@ -77,7 +77,7 @@ Services registered with `bind`/`singleton` are returned as-is; use component st
 
 ### Error boundaries
 
-`ApplicationProvider`/`ContextProvider` wrap your tree in an `ErrorBoundary` — pass `errorFallback` to render something in place of a crashed subtree. See [Errors](./services/errors.md) for how caught errors get dispatched onto the **Events** bus.
+`ApplicationProvider`/`ContextProvider` wrap your tree in an `ErrorBoundary` — pass `errorFallback` to render something in place of a crashed subtree. See [Errors](./services/errors.md) for how caught errors get dispatched onto the **Events** bus and reported to the `ErrorHandler`.
 
 ### Using an existing container
 

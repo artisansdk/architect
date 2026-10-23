@@ -1,36 +1,63 @@
-import type { Contract } from "../contract"
+import { type Contract, type LogLevel, levels } from "../contract"
 
-const LEVELS = ["debug", "info", "warn", "error"] as const
-type Level = (typeof LEVELS)[number]
+/** Native console method each severity writes through; the console has no notice or critical. */
+const OUTPUT = {
+    debug: "debug",
+    info: "info",
+    notice: "info",
+    warn: "warn",
+    error: "error",
+    critical: "error",
+    alert: "error",
+    emergency: "error",
+} as const satisfies Record<LogLevel, "debug" | "info" | "warn" | "error">
 
 export default class ConsoleLogger implements Contract {
     protected threshold: number
 
-    constructor(level: Level = "debug") {
-        this.threshold = LEVELS.indexOf(level)
+    constructor(level: LogLevel = "debug") {
+        this.threshold = levels.indexOf(level)
     }
 
     debug(message: string, context?: Record<string, unknown>): void {
-        if (this.passes(0)) console.debug(message, ...this.spread(context))
+        this.write("debug", message, context)
     }
 
     info(message: string, context?: Record<string, unknown>): void {
-        if (this.passes(1)) console.info(message, ...this.spread(context))
+        this.write("info", message, context)
+    }
+
+    notice(message: string, context?: Record<string, unknown>): void {
+        this.write("notice", message, context)
     }
 
     warn(message: string, context?: Record<string, unknown>): void {
-        if (this.passes(2)) console.warn(message, ...this.spread(context))
+        this.write("warn", message, context)
     }
 
     error(message: string, context?: Record<string, unknown>): void {
-        if (this.passes(3)) console.error(message, ...this.spread(context))
+        this.write("error", message, context)
+    }
+
+    critical(message: string, context?: Record<string, unknown>): void {
+        this.write("critical", message, context)
+    }
+
+    alert(message: string, context?: Record<string, unknown>): void {
+        this.write("alert", message, context)
+    }
+
+    emergency(message: string, context?: Record<string, unknown>): void {
+        this.write("emergency", message, context)
     }
 
     /**
-     * Returns true if the given numeric level meets or exceeds the configured threshold.
+     * Writes to the native console when the level meets or exceeds the configured threshold.
      */
-    protected passes(level: number): boolean {
-        return level >= this.threshold
+    protected write(level: LogLevel, message: string, context?: Record<string, unknown>): void {
+        if (levels.indexOf(level) >= this.threshold) {
+            console[OUTPUT[level]](message, ...this.spread(context))
+        }
     }
 
     /**

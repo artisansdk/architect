@@ -5,7 +5,7 @@ import type ConfigRepository from "../config/repository"
 import { mergeItems } from "../config/repository"
 import type { Container as Contract, Identifier } from "../container/contract"
 import { createRuntimeContainer } from "../container/runtime"
-import { ErrorHandlerProvider } from "../errors/handler"
+import { ErrorsProvider } from "../errors/provider"
 import { LogProvider } from "../log/provider"
 import { isClass } from "../support/reflect"
 import ServiceProvider, { type Cleanup, DeferrableServiceProvider } from "../support/service-provider"
@@ -152,12 +152,12 @@ export class Application {
         setContainer(container)
         container.instance("app", container)
 
-        // Config, Log and the ErrorHandler are core: every app gets them, so framework code can always
+        // Config, Log and Errors are core: every app gets them, so framework code can always
         // hand errors to the handler (which logs) instead of using console.
         const providers = [
             new ConfigProvider(this.getConfigItems()),
             new LogProvider(),
-            new ErrorHandlerProvider(),
+            new ErrorsProvider(),
             ...this.providers,
         ]
 

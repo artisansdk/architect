@@ -12,7 +12,7 @@ Application.configure()
   .run()
 ```
 
-If you're already using `defaultProviders` (see [Cache](./cache.md)), `"events"` is bound for you — [`ErrorsProvider`](./errors.md) registers it too, guarded so it won't replace an existing binding. `EventsProvider` is only necessary when you're assembling your own provider list without `defaultProviders`.
+Every app has `"events"` bound: the core [`ErrorsProvider`](./errors.md) registers it, guarded so it won't replace an existing binding. `EventsProvider` is only necessary when you want to bind the bus yourself.
 
 ## Listening
 

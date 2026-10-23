@@ -58,6 +58,32 @@ describe("ConsoleLogger", () => {
         expect(calls).toEqual(["warn", "error"])
     })
 
+    test("a notice threshold keeps notice and above, routing extra levels to the nearest console method", () => {
+        const logger = new ConsoleLogger("notice")
+        const calls: string[] = []
+
+        const orig = { debug: console.debug, info: console.info, warn: console.warn, error: console.error }
+        console.debug = () => calls.push("debug")
+        console.info = () => calls.push("info")
+        console.warn = () => calls.push("warn")
+        console.error = () => calls.push("error")
+
+        try {
+            logger.debug("nope")
+            logger.info("nope")
+            logger.notice("n")
+            logger.warn("w")
+            logger.error("e")
+            logger.critical("c")
+            logger.alert("a")
+            logger.emergency("em")
+        } finally {
+            Object.assign(console, orig)
+        }
+
+        expect(calls).toEqual(["info", "warn", "error", "error", "error", "error"])
+    })
+
     test("passes context as second argument", () => {
         const logger = new ConsoleLogger("debug")
         const received: unknown[] = []

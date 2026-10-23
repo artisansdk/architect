@@ -270,6 +270,28 @@ describe("React runtime", () => {
         expect(seen[0].errorInfo).toEqual({ componentStack: "" })
     })
 
+    test("ErrorBoundary reports caught errors to the handler and survives a failing logger", async () => {
+        const { ErrorBoundary } = await import("@/runtimes/react")
+
+        const reported: unknown[] = []
+        const container = new BuiltinContainer()
+        container.instance("errors", {
+            report: (error: unknown) => {
+                reported.push(error)
+                throw new Error("logger down")
+            },
+        })
+
+        const boundary = new ErrorBoundary({})
+        boundary.context = container
+        const error = new Error("boom")
+        expect(() => boundary.componentDidCatch(error, { componentStack: "" })).not.toThrow()
+
+        expect(reported).toHaveLength(1)
+        expect((reported[0] as { cause: unknown; source: string }).cause).toBe(error)
+        expect((reported[0] as { source: string }).source).toBe("react")
+    })
+
     test("ErrorBoundary tolerates a container without an events binding", async () => {
         const { ErrorBoundary } = await import("@/runtimes/react")
         const boundary = new ErrorBoundary({})
