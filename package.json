@@ -407,6 +407,51 @@
             "types": "./dist/support/facades/facade.d.ts",
             "bun": "./src/support/facades/facade.ts",
             "default": "./dist/support/facades/facade.js"
+        },
+        "./feature/contract": {
+            "types": "./dist/feature/contract.d.ts",
+            "bun": "./src/feature/contract.ts",
+            "default": "./dist/feature/contract.js"
+        },
+        "./feature/contracts/driver": {
+            "types": "./dist/feature/contracts/driver.d.ts",
+            "bun": "./src/feature/contracts/driver.ts",
+            "default": "./dist/feature/contracts/driver.js"
+        },
+        "./feature/contracts/can-list-stored-features": {
+            "types": "./dist/feature/contracts/can-list-stored-features.d.ts",
+            "bun": "./src/feature/contracts/can-list-stored-features.ts",
+            "default": "./dist/feature/contracts/can-list-stored-features.js"
+        },
+        "./feature/contracts/can-set-many-features-for-scopes": {
+            "types": "./dist/feature/contracts/can-set-many-features-for-scopes.d.ts",
+            "bun": "./src/feature/contracts/can-set-many-features-for-scopes.ts",
+            "default": "./dist/feature/contracts/can-set-many-features-for-scopes.js"
+        },
+        "./feature/contracts/defines-features-externally": {
+            "types": "./dist/feature/contracts/defines-features-externally.d.ts",
+            "bun": "./src/feature/contracts/defines-features-externally.ts",
+            "default": "./dist/feature/contracts/defines-features-externally.js"
+        },
+        "./feature/contracts/feature-scope-serializeable": {
+            "types": "./dist/feature/contracts/feature-scope-serializeable.d.ts",
+            "bun": "./src/feature/contracts/feature-scope-serializeable.ts",
+            "default": "./dist/feature/contracts/feature-scope-serializeable.js"
+        },
+        "./feature/contracts/feature-scopeable": {
+            "types": "./dist/feature/contracts/feature-scopeable.d.ts",
+            "bun": "./src/feature/contracts/feature-scopeable.ts",
+            "default": "./dist/feature/contracts/feature-scopeable.js"
+        },
+        "./feature/contracts/has-flushable-cache": {
+            "types": "./dist/feature/contracts/has-flushable-cache.d.ts",
+            "bun": "./src/feature/contracts/has-flushable-cache.ts",
+            "default": "./dist/feature/contracts/has-flushable-cache.js"
+        },
+        "./feature/drivers/store": {
+            "types": "./dist/feature/drivers/store.d.ts",
+            "bun": "./src/feature/drivers/store.ts",
+            "default": "./dist/feature/drivers/store.js"
         }
     },
     "dependencies": {
