@@ -21,6 +21,7 @@ type FakeValue =
 export default class HttpFactory {
     protected fakes: Array<{ pattern: string; value: FakeValue }> = []
     protected history: Array<[RecordedRequest, Response]> = []
+    protected responseMiddleware: Array<(response: Response) => void | Promise<void>> = []
     strayPrevented = false
 
     /**
@@ -231,6 +232,22 @@ export default class HttpFactory {
      */
     record(request: RecordedRequest, response: Response): void {
         this.history.push([request, response])
+    }
+
+    /**
+     * Run a callback on every response (faked or real) before it is returned, in registration order.
+     * A callback that throws rejects the request, so catch errors that shouldn't fail it.
+     */
+    globalResponseMiddleware(middleware: (response: Response) => void | Promise<void>): this {
+        this.responseMiddleware.push(middleware)
+        return this
+    }
+
+    /**
+     * Pass a response through the global response middleware. Called by {@link PendingRequest}.
+     */
+    async handleResponse(response: Response): Promise<void> {
+        for (const middleware of this.responseMiddleware) await middleware(response)
     }
 
     /**

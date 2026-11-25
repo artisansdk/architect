@@ -1,9 +1,11 @@
 import { describe, expect, mock, test } from "bun:test"
 import type { Driver } from "@/feature/contracts/driver"
-import type { FeatureScopeSerializeable } from "@/feature/contracts/feature-scope-serializeable"
+import type { FeatureList } from "@/feature/contracts/extracts-features"
+import type { FeatureScopeSerializable } from "@/feature/contracts/feature-scope-serializable"
 import type { FeatureScopeable } from "@/feature/contracts/feature-scopeable"
+import RemoteDriver from "@/feature/drivers/remote"
 import StoreDriver from "@/feature/drivers/store"
-import { Features } from "@/feature/features"
+import { Feature as Features } from "@/feature/feature"
 import MemoryStoreAdapter from "@/store/adapters/memory"
 
 /** A custom driver that deliberately implements none of the optional capabilities. */
@@ -21,7 +23,7 @@ function basicDriver(store = new MemoryStoreAdapter()): Driver {
     }
 }
 
-describe("Pennant feature driver contracts", () => {
+describe("Feature driver contracts", () => {
     test("defined and stored features are distinct, and other store entries are untouched", async () => {
         const store = new MemoryStoreAdapter()
         await store.set("session", "keep")
@@ -89,13 +91,13 @@ describe("Pennant feature driver contracts", () => {
         ).define("beta", resolver)
         expect(await features.for(scope).value("beta")).toBe("local:user:42")
         expect(identify).toHaveBeenCalledWith("local")
-        expect(resolver).toHaveBeenCalledWith("local:user:42")
+        expect(resolver).toHaveBeenCalledWith("local:user:42", "beta")
         await features.setAll([{ feature: "beta", scope, value: false }])
         expect(await features.for(scope).active("beta")).toBe(false)
     })
 
     test("serializable objects keep their resolver identity and share persisted scope values", async () => {
-        class User implements FeatureScopeSerializeable {
+        class User implements FeatureScopeSerializable {
             constructor(public id: number) {}
             featureScopeSerialize(): string {
                 return `user:${this.id}`
@@ -107,16 +109,31 @@ describe("Pennant feature driver contracts", () => {
         expect(await features.for(user).value("variant")).toBe(42)
         expect(await features.for(new User(42)).value("variant")).toBe(42)
         expect(resolver).toHaveBeenCalledTimes(1)
-        expect(resolver).toHaveBeenCalledWith(user)
-        await expect(features.for({ id: 42 }).value("variant")).rejects.toThrow("FeatureScopeSerializeable")
+        expect(resolver).toHaveBeenCalledWith(user, "variant")
+        await expect(features.for({ id: 42 }).value("variant")).rejects.toThrow("FeatureScopeSerializable")
     })
 
     test("null and numeric scopes are supported", async () => {
-        const features = new Features(new StoreDriver(new MemoryStoreAdapter())).define("scope", (scope: unknown) =>
-            String(scope),
+        const features = new Features(new StoreDriver(new MemoryStoreAdapter())).define(
+            "scope",
+            (scope: unknown = null) => String(scope),
         )
         expect(await features.for(null).value("scope")).toBe("null")
         expect(await features.for(42).value("scope")).toBe("42")
+    })
+
+    test("a null scope is false without calling resolvers that declare a scope parameter", async () => {
+        const store = new MemoryStoreAdapter()
+        const strict = mock((user: { staff: boolean }) => user.staff)
+        const features = new Features(new StoreDriver(store))
+            .define("strict", strict)
+            .define("static", "on")
+            .define("random", () => "b")
+        expect(await features.for(null).value("strict")).toBe(false)
+        expect(strict).not.toHaveBeenCalled()
+        expect(await store.get("feature:strict:__architect_null")).toBe(false)
+        expect(await features.for(null).value("static")).toBe("on")
+        expect(await features.for(null).value("random")).toBe("b")
     })
 
     test("externally defined features are selected for the converted scope", async () => {
@@ -207,5 +224,57 @@ describe("Pennant feature driver contracts", () => {
         await initial
         await override
         expect(await features.value("variant")).toBe("override")
+    })
+})
+
+describe("RemoteDriver", () => {
+    function remote(responses: Array<FeatureList | Error>, store = new MemoryStoreAdapter()) {
+        const fetcher = mock(async (_scope: unknown): Promise<FeatureList> => {
+            const next = responses.length > 1 ? responses.shift() : responses[0]
+            if (next instanceof Error) throw next
+            return next as FeatureList
+        })
+        const features = new Features(new RemoteDriver(store, fetcher))
+        return { features, fetcher, store }
+    }
+
+    test("server values overwrite stored ones; local definitions resolve what the server omits", async () => {
+        const store = new MemoryStoreAdapter()
+        await store.set("feature:simulator:user:1", "stale")
+        const { features } = remote([{ simulator: true, checkout: "b" }], store)
+        features.define("lottery", () => "local")
+        const user = features.for("user:1")
+        expect(await user.value("simulator")).toBe(true)
+        expect(await user.value("checkout")).toBe("b")
+        expect(await user.value("lottery")).toBe("local")
+        expect(await store.get("feature:simulator:user:1")).toBe(true)
+    })
+
+    test("stored server features the server stops sending read false after a refetch", async () => {
+        const { features, fetcher } = remote([["scanner"], []])
+        expect(await features.for("user:1").active("scanner")).toBe(true)
+        features.flushCache()
+        expect(await features.for("user:1").active("scanner")).toBe(false)
+        expect(fetcher).toHaveBeenCalledTimes(2)
+    })
+
+    test("a failed fetch falls back to stored values and retries on the next check", async () => {
+        const store = new MemoryStoreAdapter()
+        await store.set("feature:scanner:user:1", true)
+        const { features, fetcher } = remote([new Error("offline"), ["simulator"]], store)
+        expect(await features.for("user:1").active("scanner")).toBe(true)
+        expect(await features.for("user:1").active("simulator")).toBe(true)
+        expect(fetcher).toHaveBeenCalledTimes(2)
+    })
+
+    test("concurrent reads of a scope share one fetch, and server-only names are listed", async () => {
+        const { features, fetcher } = remote([["simulator", "scanner"]])
+        features.define("lottery", false)
+        const user = features.for("user:1")
+        await Promise.all([user.value("simulator"), user.value("scanner"), user.value("lottery")])
+        expect(fetcher).toHaveBeenCalledTimes(1)
+        expect(fetcher).toHaveBeenCalledWith("user:1")
+        expect((await user.definedFeaturesForScope()).sort()).toEqual(["lottery", "scanner", "simulator"])
+        expect(await user.all()).toEqual({ lottery: false, simulator: true, scanner: true })
     })
 })

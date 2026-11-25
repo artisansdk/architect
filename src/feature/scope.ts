@@ -27,5 +27,5 @@ export function serializeScope(scope: unknown): string {
     if (typeof scope === "string" || (typeof scope === "number" && Number.isFinite(scope))) {
         return String(scope)
     }
-    throw new TypeError("Unable to serialize the feature scope. Implement FeatureScopeSerializeable.")
+    throw new TypeError("Unable to serialize the feature scope. Implement FeatureScopeSerializable.")
 }

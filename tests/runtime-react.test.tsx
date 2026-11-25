@@ -5,6 +5,7 @@ import type { ContainerIdentifier } from "@/container/contract"
 const reactContextValues = new Map<object, unknown>()
 let forcedReactContextValue: unknown
 let lastEffectCleanup: (() => void) | undefined
+const stateUpdates: unknown[] = []
 function normalizeChildren(children: unknown[]): unknown {
     if (children.length === 0) {
         return undefined
@@ -85,7 +86,7 @@ const reactModule = {
         return { current: value }
     },
     useState<T>(value: T) {
-        return [value, () => undefined] as const
+        return [value, (next: T) => stateUpdates.push(next)] as const
     },
     useSyncExternalStore<T>(subscribe: (onChange: () => void) => () => void, getSnapshot: () => T) {
         subscribe(() => undefined)
@@ -114,6 +115,8 @@ let ContextProvider: (props: {
 let useService: <T>(identifier: ContainerIdentifier<T>) => T
 let useContainer: () => BuiltinContainer
 let useSignal: <T>(signal: import("@/support/signal").Signal<T>) => T
+let useFeature: (name: string, scope?: unknown) => boolean
+let useFeatures: typeof import("@/runtimes/react").useFeatures
 
 describe("React runtime", () => {
     beforeAll(async () => {
@@ -126,6 +129,8 @@ describe("React runtime", () => {
         useService = runtime.useService
         useContainer = runtime.useContainer as typeof useContainer
         useSignal = runtime.useSignal
+        useFeature = runtime.useFeature
+        useFeatures = runtime.useFeatures
     })
 
     test("useSignal reads the current signal value and subscribes to changes", async () => {
@@ -134,6 +139,44 @@ describe("React runtime", () => {
         expect(useSignal(signal)).toBe(1)
         signal.set(2)
         expect(useSignal(signal)).toBe(2)
+    })
+
+    test("useFeatures checks lists and aliased objects, and re-checks after the store changes", async () => {
+        const ConfigRepository = (await import("@/config/repository")).default
+        const { FeatureProvider } = await import("@/feature/provider")
+        const { StoreProvider } = await import("@/store/provider")
+        const container = new BuiltinContainer()
+        container.instance("config", new ConfigRepository({}))
+        new StoreProvider().register(container)
+        new FeatureProvider().register(container)
+        const features = container.make<import("@/feature/manager").default>("feature")
+        forcedReactContextValue = container
+        stateUpdates.length = 0
+        const lastValues = () => (stateUpdates.at(-1) as { values: boolean[] }).values
+
+        // Typed results: a tuple for a list, the same keys for an object. False until checked.
+        const [reporting, beta]: [boolean, boolean] = useFeatures(["reporting", "beta"])
+        expect([reporting, beta]).toEqual([false, false])
+        await Bun.sleep(0)
+        expect(lastValues()).toEqual([false, false])
+
+        const before = features.changes().get()
+        await features.sync(["reporting"])
+        expect(features.changes().get()).toBeGreaterThan(before)
+
+        useFeatures(["reporting", "beta"]) // the re-render a changed revision triggers
+        await Bun.sleep(0)
+        expect(lastValues()).toEqual([true, false])
+
+        const aliased: { canReport: boolean; isBeta: boolean } = useFeatures({ canReport: "reporting", isBeta: "beta" })
+        expect(aliased).toEqual({ canReport: false, isBeta: false })
+        await Bun.sleep(0)
+        expect(lastValues()).toEqual([true, false])
+
+        useFeature("reporting", "user:2")
+        await Bun.sleep(0)
+        expect(lastValues()).toEqual([false])
+        forcedReactContextValue = undefined
     })
 
     test("ApplicationProvider + useService resolves from container", () => {

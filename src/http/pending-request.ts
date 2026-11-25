@@ -185,6 +185,7 @@ export default class PendingRequest {
         const raw = await this.dispatch(request, { method, headers, body })
         const response = await Response.create(raw, request)
         this.factory?.record(request, response)
+        await this.factory?.handleResponse(response)
         return response
     }
 

@@ -4,6 +4,8 @@ export {
     ContextProvider,
     ErrorBoundary,
     useContainer,
+    useFeature,
+    useFeatures,
     useService,
     useSignal,
 } from "./runtimes/react"

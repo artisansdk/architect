@@ -27,6 +27,13 @@ export default abstract class Manager<TDriver, TFactory = TDriver> {
         return this
     }
 
+    /**
+     * The name of the active driver.
+     */
+    getDefaultDriver(): string {
+        return this.active
+    }
+
     protected abstract createDriver(raw: TFactory, config: ConfigRepository): TDriver
 
     protected defaultDriverName(): string {

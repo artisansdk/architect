@@ -1,9 +1,9 @@
-import type { Features } from "../../feature/features"
+import type FeatureManager from "../../feature/manager"
 import { createFacade } from "./facade"
 
 /**
- * Facade for the {@link Features} bound as `"feature"` — `Feature.define(...)`, `Feature.active(...)`, etc.
+ * Facade for the {@link FeatureManager} bound as `"feature"` — `Feature.define(...)`, `Feature.store(...)`, etc.
  */
-export const Feature = createFacade<Features>("feature")
+export const Feature = createFacade<FeatureManager>("feature")
 
 export default Feature

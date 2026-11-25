@@ -15,6 +15,7 @@ import { proxy } from "valtio/vanilla"
 import type { Container, Identifier } from "../container/contract"
 import ArchitectError from "../errors/error"
 import type { Bus } from "../events/bus"
+import type FeatureManager from "../feature/manager"
 import type { Application } from "../foundation/application"
 import type { Signal } from "../support/signal"
 
@@ -156,4 +157,50 @@ export function useSignal<T>(signal: Signal<T>): T {
         (onChange) => signal.subscribe(onChange),
         () => signal.get(),
     )
+}
+
+/**
+ * Whether a feature is active; `useFeatures([name])` for one feature.
+ */
+export function useFeature(name: string, scope?: unknown): boolean {
+    return useFeatures([name], scope)[0]
+}
+
+/**
+ * Whether each feature is active, re-checked whenever the default feature store changes (a response sync,
+ * `activate()`, `flushCache()`, ...). Pass a list for a tuple, `const [a, b] = useFeatures(["a", "b"])`,
+ * or an object of local names to feature names for the same keys, `const { a, b } = useFeatures({ a, b })`.
+ *
+ * Each is `false` until its check resolves or when it fails, so gated UI stays hidden until access is known.
+ * Inline lists and objects are fine: checks re-run only when the feature names change. Pass `scope` to check
+ * someone other than the default scope; it is compared by identity, so pass a stable value such as `user:42`.
+ */
+export function useFeatures<const T extends readonly string[]>(
+    names: T,
+    scope?: unknown,
+): { -readonly [I in keyof T]: boolean }
+export function useFeatures<K extends string>(names: Record<K, string>, scope?: unknown): Record<K, boolean>
+export function useFeatures(names: readonly string[] | Record<string, string>, scope?: unknown): unknown {
+    const features = useService<FeatureManager>("feature")
+    const revision = useSignal(features.changes())
+    const list = Array.isArray(names) ? names : Object.values(names)
+    const key = JSON.stringify(list)
+    const [checked, setChecked] = useState<{ key: string; values: boolean[] } | null>(null)
+
+    // biome-ignore lint/correctness/useExhaustiveDependencies: `revision` is the trigger to check again after the store changes.
+    useEffect(() => {
+        let current = true
+        const store = scope === undefined ? features : features.for(scope)
+        const names = JSON.parse(key) as string[]
+        void Promise.all(names.map((name) => store.active(name).catch(() => false))).then((values) => {
+            if (current) setChecked({ key, values })
+        })
+        return () => {
+            current = false
+        }
+    }, [features, key, scope, revision])
+
+    // Values checked for a previous list of names don't apply to this one.
+    const values = checked?.key === key ? checked.values : list.map(() => false)
+    return Array.isArray(names) ? values : Object.fromEntries(Object.keys(names).map((alias, i) => [alias, values[i]]))
 }
